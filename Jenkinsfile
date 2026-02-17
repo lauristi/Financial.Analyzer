@@ -16,13 +16,13 @@ pipeline {
         API_NAME         = 'Server.Api'
         API_PROJECT_FILE = 'Server.Solution/Server.Api/Server.Api.csproj'
         API_PUBLISH_PATH = 'Server.Solution/Server.Api/bin/Release/net8.0/publish'
-        API_DEPLOY_PATH  = '/var/www/app/ServerProjects/Server.Api'
+        API_DEPLOY_PATH = '/var/www/app/ServerProjects/Financial.Analyzer/Server.Api'
         
         // Caminhos do Web (Blazor)
         WEB_NAME         = 'Server.Web'
         WEB_PROJECT_FILE = 'Server.Web.Solution/Server.Web/Server.Web.csproj'
         WEB_PUBLISH_PATH = 'Server.Web.Solution/Server.Web/bin/Release/net8.0/publish'
-        WEB_DEPLOY_PATH  = '/var/www/app/ServerProjects/Server.Web'
+        WEB_DEPLOY_PATH = '/var/www/app/ServerProjects/Financial.Analyzer/Server.Web'
 
         // Caminhos de Artefatos
         ARTIFACT_ROOT = 'Artifacts'
