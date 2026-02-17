@@ -1,0 +1,45 @@
+/* Container principal com espaçamento */
+.dashboard-grid[b-so78dq53od] {
+    display: flex;
+    flex-direction: column;
+    gap: 16px; /* Espaço entre os itens */
+}
+
+/* Base dos itens do dashboard */
+.dashboard-card[b-so78dq53od] {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 1.5rem;
+    border-radius: 10px;
+    color: white; /* Letra branca */
+    font-weight: 600;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    transition: transform 0.2s ease;
+}
+
+    .dashboard-card:hover[b-so78dq53od] {
+        transform: scale(1.01);
+    }
+
+/* Cores solicitadas por categoria */
+.cat-mercado[b-so78dq53od] {
+    background-color: #6f42c1; /* Roxo */
+}
+
+.cat-farmacia[b-so78dq53od] {
+    background-color: #0d6efd; /* Azul */
+}
+
+.cat-creditos[b-so78dq53od] {
+    background-color: #198754; /* Verde */
+}
+
+.cat-debitos[b-so78dq53od] {
+    background-color: #dc3545; /* Vermelho */
+}
+
+.value-display[b-so78dq53od] {
+    font-family: 'Consolas', monospace;
+    font-size: 1.2rem;
+}

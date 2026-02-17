@@ -1,0 +1,25 @@
+PÁGINA (Orquestrador)              SERVIÇO (Central)             COMPONENTE (Interface)
+      +----------------------+          +----------------------+        +----------------------+
+      |                      |          |                      |        |                      |
+      |   (1) OCORRE ERRO    |          |    IAlertService     |        |  UXMessageComponent  |
+      |                      |          |                      |        |                      |
+      +----------+-----------+          +----------+-----------+        +----------+-----------+
+                 |                                 |                             |
+                 |      [ EXEMPLO CHAMADA ]        |                             |
+                 |   await Alert.Show("Erro!",..)  |                             |
+                 +-------------------------------> |                             |
+                 |                                 |                             |
+                 |                          (2) ATUALIZA DADOS                   |
+                 |                          Message = "Erro!"                    |
+                 |                          IsVisible = true                     |
+                 |                                 |                             |
+                 |                          (3) GATILHO                          |
+                 |                          OnChange.Invoke()                    |
+                 |                                 +---------------------------->|
+                 |                                 |      [ NOTIFICAÇÃO ]        |
+                 |                                 |    Executa StateHasChanged  |
+                 |                                 |                             |
+                 |                                 |                      (4) REAÇÃO             
+                 |                                 |                      O HTML é redesenhado
+                 |                                 |                      e o erro aparece!
+                 |                                 |                             |

@@ -1,0 +1,16 @@
+﻿@page "/"  
+
+<UploadStatementComponent OnUpload="ProcessStatementUpload" />
+
+<UploadExpenseComponent OnUpload="ProcessExpenseUpload" />
+
+<UXMessageComponent
+    UploadMessage="@UploadMessage"
+    AlertClass="@AlertClass"
+    ShowMessage="@ShowMessage" />
+
+<FinancialDashboardComponent
+    SuperMarket="@SuperMarket"
+    Pharmacy="@Pharmacy"
+    TotalDebit="@TotalDebit"
+    TotalCredit="@TotalCredit" />

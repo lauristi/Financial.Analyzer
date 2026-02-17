@@ -1,0 +1,31 @@
+﻿@page "/error-simulator"
+@using System.Net.Http.Json
+
+<div class="card p-4 shadow-sm">
+    <h3 class="mb-4 text-secondary">Simulador de Exceções - Middleware</h3>
+
+    <div class="d-flex gap-3 flex-wrap">
+        <button class="btn btn-outline-danger" @onclick='() => CallEndpoint("exception")'>
+            <i class="bi bi-bug"></i> Simular Erro Genérico (500)
+        </button>
+
+        <button class="btn btn-outline-warning" @onclick='() => CallEndpoint("business-error")'>
+            <i class="bi bi-exclamation-triangle"></i> Simular Erro de Negócio (400)
+        </button>
+
+        <button class="btn btn-outline-info" @onclick='() => CallEndpoint("validation-errors")'>
+            <i class="bi bi-list-check"></i> Simular Erro de Validação (422)
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(ResponseJson))
+    {
+        <div class="mt-4 animate__animated animate__fadeIn">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5>Resposta do Middleware:</h5>
+                <span class="badge bg-dark">Status: @LastStatusCode</span>
+            </div>
+            <pre class="bg-dark text-light p-3 border rounded mt-2" style="max-height: 400px; overflow-y: auto;">@ResponseJson</pre>
+        </div>
+    }
+</div>

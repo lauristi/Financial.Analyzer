@@ -1,0 +1,21 @@
+﻿<div class="dashboard-grid">
+    <div class="dashboard-card cat-mercado">
+        <span><i class="bi bi-cart4 me-2"></i>Supermercado</span>
+        <span class="value-display">@Data.Supermarket.ToString("C")</span>
+    </div>
+
+    <div class="dashboard-card cat-farmacia">
+        <span><i class="bi bi-capsule me-2"></i>Farmácia</span>
+        <span class="value-display">@Data.Pharmacy.ToString("C")</span>
+    </div>
+
+    <div class="dashboard-card cat-debitos">
+        <span><i class="bi bi-dash-circle me-2"></i>Débitos (Geral)</span>
+        <span class="value-display">@Data.TotalDebit.ToString("C")</span>
+    </div>
+
+    <div class="dashboard-card cat-creditos">
+        <span><i class="bi bi-plus-circle me-2"></i>Créditos</span>
+        <span class="value-display">@Data.TotalCredit.ToString("C")</span>
+    </div>
+</div>

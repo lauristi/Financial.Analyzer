@@ -1,0 +1,19 @@
+﻿O que é um Middleware no ASP.NET Core?
+Definição:
+Um Middleware é um componente de software que é montado no "pipeline" (fluxo) de uma aplicação para manipular requisições e respostas HTTP. Imagine-o como um filtro ou uma estação numa linha de montagem por onde toda a informação tem de passar.
+
+Como funciona neste projeto:
+
+Interceção: Ele fica "à escuta" de todas as chamadas que chegam à API.
+
+Execução em Cadeia: Ele recebe a requisição, pode executar alguma lógica e depois passa o controlo para o próximo componente da lista (o _next).
+
+Tratamento Global: No caso específico do nosso GlobalExceptionMiddleware, ele envolve toda a execução da API num bloco try-catch.
+
+Vantagens desta abordagem:
+
+Centralização: Não precisamos de colocar try-catch em todos os métodos de todos os Controllers. Se algo falhar em qualquer lugar, o Middleware captura.
+
+Padronização: Garante que, independentemente do erro, o Front-end receba sempre o mesmo formato de JSON (ApiErrorResponse).
+
+Segurança: Impede que detalhes sensíveis do servidor (como nomes de tabelas ou caminhos de ficheiros) sejam expostos ao utilizador final em ambiente de Produção.

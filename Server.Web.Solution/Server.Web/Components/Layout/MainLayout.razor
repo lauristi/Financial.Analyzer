@@ -1,0 +1,35 @@
+﻿@inherits LayoutComponentBase
+
+<div class="page">
+    <main>
+        @* TOP *@
+         <nav class="text-light navbar fixed-top navbar-dark bg-dark">
+             <div class="row">
+                <div class="col-2 text-left ml-4">
+                    <img src="/image/Titulo.png" alt="imagem">
+                </div>
+             </div>
+        </nav>
+                
+        <article id="master-article" class="mt-5 content px-4">
+            @Body
+        </article>
+        
+        @* FOOTER *@
+        <nav class="text-light navbar fixed-bottom navbar-dark bg-dark">
+
+            <div class="row">
+                <div class="col-25 text-left">
+                    <label class="label"> © 2024 Copyright: <a class="class=" text-light text-reset fw-bold" href="http://linkedin.com/in/lauristi/ ">LaurisTI</a></label>
+                </div>
+            </div>
+        </nav> 
+
+    </main>
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>

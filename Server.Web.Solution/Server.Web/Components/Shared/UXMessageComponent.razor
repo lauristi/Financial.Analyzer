@@ -1,0 +1,9 @@
+﻿@namespace Server.Web.Components.Shared
+@using Server.Web.Services.Implementations
+
+@if (AlertService.IsVisible)
+{
+    <div class="alert @AlertService.CssClass" role="alert">
+        @AlertService.Message
+    </div>
+}

@@ -1,0 +1,13 @@
+﻿<div class="d-flex flex-column gap-2">
+    <div class="input-group">
+        <InputFile accept=".csv"
+                   OnChange="HandleFileSelected"
+                   class="form-control form-control-sm" />
+    </div>
+
+    <button class="btn btn-warning w-100 shadow-sm"
+            @onclick="Upload"
+            disabled="@(files == null || files.Count == 0)">
+        <i class="bi bi-upload me-2"></i>Enviar Despesas
+    </button>
+</div>

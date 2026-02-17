@@ -1,0 +1,22 @@
+﻿<h3>CsvUploadComponent</h3>
+
+<div class="mb-3">
+
+    <label class="form-label">@Label</label>
+
+    <InputFile class="form-control form-control-sm"
+               multiple="@Multiple"
+               accept=".csv,text/csv"
+               OnChange="HandleFilesSelected" />
+
+    @if (_fileNames.Any())
+    {
+        <div class="mt-2 small text-muted">
+            @foreach (var file in _fileNames)
+            {
+                <div>• @file</div>
+            }
+        </div>
+    }
+
+</div>

@@ -1,0 +1,12 @@
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Domain\bin\Debug\net8.0\Server.Domain.deps.json
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Domain\bin\Debug\net8.0\Server.Domain.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Domain\bin\Debug\net8.0\Server.Domain.pdb
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Domain\obj\Debug\net8.0\Server.Domain.csproj.AssemblyReference.cache
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Domain\obj\Debug\net8.0\Server.Domain.GeneratedMSBuildEditorConfig.editorconfig
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Domain\obj\Debug\net8.0\Server.Domain.AssemblyInfoInputs.cache
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Domain\obj\Debug\net8.0\Server.Domain.AssemblyInfo.cs
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Domain\obj\Debug\net8.0\Server.Domain.csproj.CoreCompileInputs.cache
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Domain\obj\Debug\net8.0\Server.Domain.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Domain\obj\Debug\net8.0\refint\Server.Domain.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Domain\obj\Debug\net8.0\Server.Domain.pdb
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Domain\obj\Debug\net8.0\ref\Server.Domain.dll
