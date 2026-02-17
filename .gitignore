@@ -1,0 +1,17 @@
+
+## Visual Studio Temp Files
+.vs/
+[Bb]in/
+[Obj]/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## .NET Core
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## Publish Output
+publish/
