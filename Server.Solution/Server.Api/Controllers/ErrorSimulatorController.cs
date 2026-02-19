@@ -1,5 +1,4 @@
-﻿using Core.Infrastructure.Common;
-using Core.Infrastructure.Responses;
+﻿using Core.Infrastructure.Responses;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Server.Api.Controllers
@@ -23,12 +22,12 @@ namespace Server.Api.Controllers
         [HttpGet("business-error")]
         public IActionResult GetBusinessError()
         {
-            var result = OperationResult<string>.Failure("Este item já foi processado.", "ERR_ALREADY_PROCESSED");
+            var result = ResponseEnvelope<string>.Failure("Este item já foi processado.", "ERR_ALREADY_PROCESSED");
 
             return BadRequest(new ApiErrorResponse
             {
                 Title = "Regra de Negócio",
-                Message = result.ErrorMessage,
+                Message = result.Message,
                 ErrorCode = result.ErrorCode
             });
         }
@@ -46,12 +45,12 @@ namespace Server.Api.Controllers
                 "A senha deve conter caracteres especiais."
             };
 
-            var result = OperationResult<bool>.Failure(erros, "VALIDATION_001");
+            var result = ResponseEnvelope<bool>.Failure("Foram encontrados erros de validação.","VALIDATION_001", erros);
 
             return BadRequest(new ApiErrorResponse
             {
                 Title = "Falha na Validação",
-                Message = result.ErrorMessage,
+                Message = result.Message,
                 ErrorCode = result.ErrorCode,
                 Errors = result.Errors.ToList()
             });

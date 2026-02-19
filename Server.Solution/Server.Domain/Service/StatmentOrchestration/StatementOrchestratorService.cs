@@ -45,9 +45,14 @@ public class StatementOrchestratorService : IStatementOrchestratorService
 
         var expenses = await _expenseService.GetAll();
         allSpending = _statementMapperService.MapToSpendingData(transactions);
+               
 
-        //03 Processar os dados de gastos usando a inteligência de classificação para categorizar cada gasto
+        // 03 - Inteligência Local (Síncrona/Heurística)
         statementResponse = _financialIntelligenceService.AnalyzeSpending(allSpending, expenses);
+
+        // 04 - Inteligência Artificial (Assíncrona/Probabilística)
+        // Passamos a lista e o método nos devolve a mesma lista atualizada
+        statementResponse.SpendingDataList = await _financialIntelligenceService.AnalyzeSpendingUsingIAAsync(statementResponse.SpendingDataList);
 
 
         //04  Cria o XLS

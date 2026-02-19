@@ -56,8 +56,7 @@ namespace Server.Api.Domain.Service.InfrastrutureService
 
                     worksheet.Cells[currentRow, 6].Value = item.Score;
 
-
-                    //COL 06 Formatação de cor baseada no valor da coluna     
+                    //COL 06 Formatação de cor baseada no valor da coluna
                     var scoreCell = worksheet.Cells[currentRow, 6];
                     scoreCell.Style.Font.Bold = true; // Negrito para todos para facilitar a leitura
 
@@ -66,13 +65,16 @@ namespace Server.Api.Domain.Service.InfrastrutureService
                         case "ALTO":
                             scoreCell.Style.Font.Color.SetColor(Color.Red);
                             break;
+
                         case "MEDIO":
                         case "MÉDIO":
                             scoreCell.Style.Font.Color.SetColor(Color.Orange);
                             break;
+
                         case "BAIXO":
                             scoreCell.Style.Font.Color.SetColor(Color.Gray); // Use Gray ou Color.FromArgb(128, 128, 128)
                             break;
+
                         default:
                             scoreCell.Style.Font.Color.SetColor(Color.Black);
                             break;
@@ -113,7 +115,8 @@ namespace Server.Api.Domain.Service.InfrastrutureService
                     Directory.CreateDirectory(_fullPath);
                     return true;
                 }
-                else {
+                else
+                {
                     // 4. Agora sim podemos usar o fileInfo para checar e deletar
                     DirectoryInfo directory = new DirectoryInfo(_fullPath);
                     foreach (FileInfo file in directory.GetFiles())
@@ -124,7 +127,7 @@ namespace Server.Api.Domain.Service.InfrastrutureService
                         }
                         catch (IOException)
                         {
-                            // O arquivo está aberto ou travado. 
+                            // O arquivo está aberto ou travado.
                             // Ignoramos para não quebrar a execução atual.
                         }
                     }
@@ -142,9 +145,10 @@ namespace Server.Api.Domain.Service.InfrastrutureService
         {
             // 1. Ordenação cronológica aceitando hífens ou barras
             string[] formats = { "dd/MM/yyyy", "dd-MM-yyyy" };
-            
+
             var earliestTransaction = spendingDataList
-                .OrderBy(x => {
+                .OrderBy(x =>
+                {
                     // Tentamos primeiro com barra, se falhar, tentamos com hífen
 
                     return DateTime.ParseExact(x.Date, formats, CultureInfo.InvariantCulture, DateTimeStyles.None);
@@ -156,7 +160,7 @@ namespace Server.Api.Domain.Service.InfrastrutureService
                 var dateRef = earliestTransaction.Date;
                 var bankRef = earliestTransaction.Bank ?? "Desconhecido";
 
-                if (DateTime.TryParseExact(dateRef,formats, CultureInfo.InvariantCulture,
+                if (DateTime.TryParseExact(dateRef, formats, CultureInfo.InvariantCulture,
                                            DateTimeStyles.None, out DateTime dateTimeArchive))
                 {
                     // Ajuste de competência para o Banco do Brasil

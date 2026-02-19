@@ -24,6 +24,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DevOps", "DevOps", "{8EC462
 		..\Jenkinsfile = ..\Jenkinsfile
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.AI.Contracts", "..\Shared.Solution\Core.AI.Contracts\Core.AI.Contracts.csproj", "{F632D93D-7BCF-D1B3-491F-81626190CF4A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.AI.Infrastructure", "..\Shared.Solution\Core.AI.Infrastructure\Core.AI.Infrastructure.csproj", "{D22FA2BF-4900-6A98-F59B-EEDAB31FD5D9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -50,6 +54,14 @@ Global
 		{E243672C-9CA0-4B4D-33C8-D1671D4C4182}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E243672C-9CA0-4B4D-33C8-D1671D4C4182}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E243672C-9CA0-4B4D-33C8-D1671D4C4182}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F632D93D-7BCF-D1B3-491F-81626190CF4A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F632D93D-7BCF-D1B3-491F-81626190CF4A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F632D93D-7BCF-D1B3-491F-81626190CF4A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F632D93D-7BCF-D1B3-491F-81626190CF4A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D22FA2BF-4900-6A98-F59B-EEDAB31FD5D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D22FA2BF-4900-6A98-F59B-EEDAB31FD5D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D22FA2BF-4900-6A98-F59B-EEDAB31FD5D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D22FA2BF-4900-6A98-F59B-EEDAB31FD5D9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -60,6 +72,8 @@ Global
 		{0AAEF6C0-46B8-1568-A0E3-B3F4B48A07B9} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{58C9C98C-7614-3F8A-7BBE-EE44A121D584} = {59413498-4DFC-452F-B42D-8CC603DD61D5}
 		{E243672C-9CA0-4B4D-33C8-D1671D4C4182} = {DF2314A6-0B5D-4548-9C16-E18744FB9180}
+		{F632D93D-7BCF-D1B3-491F-81626190CF4A} = {DF2314A6-0B5D-4548-9C16-E18744FB9180}
+		{D22FA2BF-4900-6A98-F59B-EEDAB31FD5D9} = {DF2314A6-0B5D-4548-9C16-E18744FB9180}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D6A3B245-FA40-4428-BEB5-C15C9A7B4CE4}

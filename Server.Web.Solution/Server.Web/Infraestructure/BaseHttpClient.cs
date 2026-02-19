@@ -1,7 +1,4 @@
-﻿using Core.Infrastructure.Common; 
-using Core.Infrastructure.Responses; 
-
-namespace Server.Web.Infrastructure
+﻿namespace Server.Web.Infrastructure
 {
     public abstract class BaseHttpClient
     {
@@ -12,24 +9,33 @@ namespace Server.Web.Infrastructure
             _http = http;
         }
 
-        protected async Task<OperationResult<T>> HandleResponse<T>(HttpResponseMessage response)
+        /// <summary>
+        /// Processa a resposta da API esperando sempre um ResponseEnvelope padronizado.
+        /// </summary>
+        protected async Task<ResponseEnvelope<T>> HandleResponse<T>(HttpResponseMessage response)
         {
-            if (response.IsSuccessStatusCode)
-            {
-                var data = await response.Content.ReadFromJsonAsync<T>();
-                return OperationResult<T>.Success(data);
-            }
-
             try
             {
-                // Captura o erro padronizado vindo do nosso GlobalExceptionMiddleware
-                var apiError = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
-                return OperationResult<T>.Failure(apiError.Errors, apiError.ErrorCode);
+                // Se a resposta for sucesso (200-299), lemos o envelope completo do Back-end.
+                // O T aqui representa o tipo do campo 'Value' dentro do envelope.
+                if (response.IsSuccessStatusCode)
+                {
+                    var envelope = await response.Content.ReadFromJsonAsync<ResponseEnvelope<T>>();
+                    return envelope ?? ResponseEnvelope<T>.Failure("O servidor retornou um corpo vazio.");
+                }
+
+                // Se houver erro de negócio ou exceção tratada (ex: 400, 404, 500),
+                // o Back-end também enviará um ResponseEnvelope<T> preenchido com as falhas.
+                var errorEnvelope = await response.Content.ReadFromJsonAsync<ResponseEnvelope<T>>();
+                return errorEnvelope ?? ResponseEnvelope<T>.Failure("Erro desconhecido ao processar a requisição.");
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback para erros inesperados
-                return OperationResult<T>.Failure(new List<string> { "Erro de comunicação com o servidor." }, "HTTP_ERROR");
+                // Fallback para falhas críticas de infraestrutura (ex: JSON malformado ou timeout)
+                return ResponseEnvelope<T>.Failure(
+                    $"Erro de comunicação: {ex.Message}",
+                    "HTTP_COMMUNICATION_ERROR"
+                );
             }
         }
     }

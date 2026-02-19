@@ -11,9 +11,10 @@ namespace Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel
             Dashboard = new FinancialDashboard();
             FilePath = string.Empty;
         }
+
         public List<SpendingData> SpendingDataList { get; set; }
         public FinancialDashboard Dashboard { get; set; }
         public string FilePath { get; set; }
-        public string FileBase64 { get; set; } 
+        public string FileBase64 { get; set; }
     }
 }

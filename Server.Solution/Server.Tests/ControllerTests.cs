@@ -5,7 +5,6 @@ using Server.Api.Controllers;
 using Server.Api.Domain.Model;
 using Server.Api.Domain.Service.InfrastrutureService.Interface;
 
-
 namespace Server.Api.Tests
 {
     public class ControllerTests

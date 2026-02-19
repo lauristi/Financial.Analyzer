@@ -1,7 +1,8 @@
-﻿using Core.Infrastructure.Middlewares;
+﻿using Core.AI.Contracts.Interfaces;
+using Core.AI.Infrastructure.Services;
+using Core.Infrastructure.Middlewares;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
-using Microsoft.OpenApi;
 using Microsoft.OpenApi.Models;
 using Server.Api.Domain.Infrastructure.EncryptionLib;
 using Server.Api.Domain.Service.BankService;
@@ -66,6 +67,43 @@ builder.Services.AddScoped<IStatementOrchestratorService, StatementOrchestratorS
 
 #endregion 02. Injeção de Dependência e AutoMapper
 
+
+#region Injecao de Dependência para Analista Financeiro de IA   
+
+// Adiciona o arquivo de segredos à configuração
+builder.Configuration.AddJsonFile("appsettings.Secrets.json", optional: true, reloadOnChange: true);
+
+// 1. Recuperamos as configurações do appsettings.json
+var aiProvider = builder.Configuration["AiSettings:Provider"]; // "Ollama" ou "Gemini"
+
+if (aiProvider == "Gemini")
+{
+    var apiKey = builder.Configuration["AiSettings:GeminiApiKey"];
+    builder.Services.AddScoped<IFinancialAiAnalyst>(sp =>
+        new GeminiFinancialAnalyst(apiKey));
+}
+else
+{
+    // Configuração padrão para o Ollama Local
+    var dockerUri = new Uri(builder.Configuration["AiSettings:DockerUri"] ?? "npipe://./pipe/docker_engine");
+    var ollamaUri = new Uri(builder.Configuration["AiSettings:OllamaUri"] ?? "http://localhost:11434");
+
+    builder.Services.AddScoped<IFinancialAiAnalyst>(sp =>
+        new OllamaFinancialAnalyst(dockerUri, ollamaUri));
+}
+
+// 2. Registramos o serviço de domínio que orquestra a inteligência
+builder.Services.AddScoped<IFinancialIntelligenceService, FinancialIntelligenceService>();
+
+#endregion
+
+
+
+
+
+
+
+
 #region 03. Configurações de Controladores e JSON
 
 builder.Services.AddControllers()
@@ -90,7 +128,7 @@ builder.Services.AddSwaggerGen(options =>
         Description = "API para processamento de extratos bancários e análise financeira."
     });
 
-    // Esta linha é um "truque" para garantir que o Swagger não se perca com 
+    // Esta linha é um "truque" para garantir que o Swagger não se perca com
     // tipos complexos ou mapeamentos que você atualizou no NuGet
     options.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
 });
@@ -120,7 +158,7 @@ app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Financial Analyzer V1");
-    c.RoutePrefix = "swagger"; 
+    c.RoutePrefix = "swagger";
 });
 
 app.UseAuthorization();

@@ -1,0 +1,90 @@
+[
+  {
+    "ContainingType": "Server.Api.Controllers.ClipboardController",
+    "Method": "GetClipBoard",
+    "RelativePath": "api/clipboard/get",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Server.Api.Controllers.ClipboardController",
+    "Method": "PostClipBoard",
+    "RelativePath": "api/clipboard/post",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "transmition",
+        "Type": "Server.Api.Domain.Model.Transmition",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Server.Api.Controllers.ErrorSimulatorController",
+    "Method": "GetBusinessError",
+    "RelativePath": "api/ErrorSimulator/business-error",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Server.Api.Controllers.ErrorSimulatorController",
+    "Method": "ThrowException",
+    "RelativePath": "api/ErrorSimulator/exception",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Server.Api.Controllers.ErrorSimulatorController",
+    "Method": "GetMultipleErrors",
+    "RelativePath": "api/ErrorSimulator/validation-errors",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Server.Api.Controllers.StatementController",
+    "Method": "UploadExpenses",
+    "RelativePath": "api/statement/uploadExpenses",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "file",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Server.Api.Controllers.StatementController",
+    "Method": "UploadStatement",
+    "RelativePath": "api/statement/uploadStatement",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "files",
+        "Type": "System.Collections.Generic.List\u00601[[Microsoft.AspNetCore.Http.IFormFile, Microsoft.AspNetCore.Http.Features, Version=8.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  }
+]

@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Server.Api.Domain.Service.InfrastrutureService.Interface
+﻿namespace Server.Api.Domain.Service.InfrastrutureService.Interface
 {
     public interface IDataSanitizerService
     {

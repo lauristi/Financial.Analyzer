@@ -139,3 +139,16 @@ D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Serve
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\obj\Debug\net8.0\Server.Tests.pdb
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\obj\Debug\net8.0\Server.Tests.genruntimeconfig.cache
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\obj\Debug\net8.0\ref\Server.Tests.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\bin\Debug\net8.0\Docker.DotNet.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\bin\Debug\net8.0\Microsoft.Extensions.AI.Abstractions.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\bin\Debug\net8.0\OllamaSharp.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\bin\Debug\net8.0\System.IO.Pipelines.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\bin\Debug\net8.0\System.Text.Encodings.Web.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\bin\Debug\net8.0\System.Text.Json.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\bin\Debug\net8.0\runtimes\browser\lib\net8.0\System.Text.Encodings.Web.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\bin\Debug\net8.0\Core.AI.Contracts.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\bin\Debug\net8.0\Core.AI.Infrastructure.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\bin\Debug\net8.0\Core.AI.Contracts.pdb
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\bin\Debug\net8.0\Core.AI.Infrastructure.pdb
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\obj\Debug\net8.0\Server.Tests.sourcelink.json
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Tests\bin\Debug\net8.0\appsettings.Secrets.json

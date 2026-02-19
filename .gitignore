@@ -15,3 +15,6 @@ artifacts/
 
 ## Publish Output
 publish/
+
+## Configuration Secrets
+**/appsettings.Secrets.json

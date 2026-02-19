@@ -1,17 +1,16 @@
-﻿using Core.Infrastructure.Common;
-using Server.Web.Services.Interfaces;
-using Server.Web.Services.Models.GroupedModel;
+﻿using Server.Web.Services.Interfaces;
 
 public class AlertService : IAlertService
 {
     public string Message { get; private set; } = string.Empty;
     public string CssClass { get; private set; } = "alert-info";
     public bool IsVisible { get; private set; }
+
     public event Action? OnChange;
 
     // Ajustado para receber o objeto OperationResult diretamente
     // Alteramos para aceitar qualquer tipo de OperationResult<T>
-    public async Task Show<T>(OperationResult<T> result, string css)
+    public async Task Show<T>(ResponseEnvelope<T> result, string css)
     {
         if (result.Errors != null && result.Errors.Any())
         {
@@ -19,7 +18,7 @@ public class AlertService : IAlertService
         }
         else if (!result.IsSuccess)
         {
-            Message = result.ErrorMessage ?? "Ocorreu um erro desconhecido.";
+            Message = result.Message ?? "Ocorreu um erro desconhecido.";
         }
         else
         {

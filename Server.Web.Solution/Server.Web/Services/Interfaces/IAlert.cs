@@ -1,7 +1,4 @@
-﻿using Core.Infrastructure.Common;
-using Server.Web.Services.Models.GroupedModel;
-
-namespace Server.Web.Services.Interfaces
+﻿namespace Server.Web.Services.Interfaces
 {
     public interface IAlertService
     {
@@ -15,7 +12,8 @@ namespace Server.Web.Services.Interfaces
         event Action? OnChange;
 
         // Contrato para a ação de exibir o alerta
-        Task Show<T>(OperationResult<T> result, string css);
+        Task Show<T>(ResponseEnvelope<T> result, string css);
+
         Task Show(string message, string css);
     }
 }

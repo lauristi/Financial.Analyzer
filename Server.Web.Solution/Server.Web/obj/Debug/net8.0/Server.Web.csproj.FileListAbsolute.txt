@@ -49,3 +49,4 @@ D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\S
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\Server.Web\obj\Debug\net8.0\Server.Web.pdb
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\Server.Web\obj\Debug\net8.0\Server.Web.genruntimeconfig.cache
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\Server.Web\obj\Debug\net8.0\ref\Server.Web.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\Server.Web\obj\Debug\net8.0\Server.Web.sourcelink.json

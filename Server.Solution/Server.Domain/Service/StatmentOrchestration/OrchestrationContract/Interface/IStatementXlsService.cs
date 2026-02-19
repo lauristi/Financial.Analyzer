@@ -1,5 +1,4 @@
 ﻿using Server.Api.Domain.Service.ProcessStatementService.Model;
-using Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel;
 
 namespace Server.Api.Domain.Service.InfrastrutureService.Interface
 {

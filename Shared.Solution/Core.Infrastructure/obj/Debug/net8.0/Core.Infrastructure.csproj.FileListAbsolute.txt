@@ -10,3 +10,4 @@ D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\obj\Debug\net8.0\refint\Core.Infrastructure.dll
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\obj\Debug\net8.0\Core.Infrastructure.pdb
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\obj\Debug\net8.0\ref\Core.Infrastructure.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\obj\Debug\net8.0\Core.Infrastructure.sourcelink.json

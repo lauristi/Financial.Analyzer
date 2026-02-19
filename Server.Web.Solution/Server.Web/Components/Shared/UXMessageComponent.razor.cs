@@ -16,7 +16,7 @@ public partial class UXMessageComponent : ComponentBase, IDisposable
 
     private async void NotifyStateChanged()
     {
-        // O InvokeAsync é fundamental para garantir que a re-renderização 
+        // O InvokeAsync é fundamental para garantir que a re-renderização
         // ocorra na thread correta da interface.
         await InvokeAsync(StateHasChanged);
     }

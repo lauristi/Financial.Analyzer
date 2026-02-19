@@ -61,3 +61,17 @@ D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Serve
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\obj\Debug\net8.0\Server.Api.pdb
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\obj\Debug\net8.0\Server.Api.genruntimeconfig.cache
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\obj\Debug\net8.0\ref\Server.Api.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\bin\Debug\net8.0\Docker.DotNet.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\bin\Debug\net8.0\Microsoft.Extensions.AI.Abstractions.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\bin\Debug\net8.0\Newtonsoft.Json.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\bin\Debug\net8.0\OllamaSharp.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\bin\Debug\net8.0\System.IO.Pipelines.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\bin\Debug\net8.0\System.Text.Encodings.Web.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\bin\Debug\net8.0\System.Text.Json.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\bin\Debug\net8.0\runtimes\browser\lib\net8.0\System.Text.Encodings.Web.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\bin\Debug\net8.0\Core.AI.Contracts.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\bin\Debug\net8.0\Core.AI.Infrastructure.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\bin\Debug\net8.0\Core.AI.Contracts.pdb
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\bin\Debug\net8.0\Core.AI.Infrastructure.pdb
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\obj\Debug\net8.0\Server.Api.sourcelink.json
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Solution\Server.Api\bin\Debug\net8.0\appsettings.Secrets.json

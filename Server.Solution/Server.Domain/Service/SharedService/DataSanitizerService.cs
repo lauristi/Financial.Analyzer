@@ -1,5 +1,4 @@
 ﻿using Server.Api.Domain.Service.InfrastrutureService.Interface;
-using Server.Api.Domain.Service.ProcessStatementService.Model;
 using System.Globalization;
 using System.Text;
 
@@ -62,10 +61,9 @@ namespace Server.Api.Domain.Service.InfrastrutureService
 
         public decimal NormalizeStringToDecimal(string value)
         {
-            
             // A InvariantCulture utiliza o ponto (.) como separador decimal, padrão em CSVs
             var culture = System.Globalization.CultureInfo.InvariantCulture;
-            
+
             var style = System.Globalization.NumberStyles.AllowDecimalPoint |
                         System.Globalization.NumberStyles.AllowThousands |
                         System.Globalization.NumberStyles.AllowTrailingSign | // Permite sinal no fim
@@ -75,7 +73,8 @@ namespace Server.Api.Domain.Service.InfrastrutureService
             {
                 return valorConvertido; // Aqui o sinal negativo será preservado
             }
-            else {
+            else
+            {
                 return 0.0m;
             }
         }

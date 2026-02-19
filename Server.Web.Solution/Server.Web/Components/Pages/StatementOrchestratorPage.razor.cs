@@ -25,7 +25,7 @@ public partial class StatementOrchestratorPage : ComponentBase
         activeTab = tabName;
     }
 
-    #endregion
+    #endregion Gerenciamento do TAB
 
     #region Upload
 
@@ -38,7 +38,7 @@ public partial class StatementOrchestratorPage : ComponentBase
             // 1. Prepara o conteúdo para o envio
             var content = await CreateMultipartContent(files, "files");
 
-            var result = await FinancialService.ProcessStatementAsync(content);
+            var result = await FinancialService.ProcessStatementAsync<StatementResult>(content);
 
             // 3. Agora a variável 'result' existe e pode ser verificada
             if (result.IsSuccess && result.Value != null)
@@ -72,12 +72,17 @@ public partial class StatementOrchestratorPage : ComponentBase
         try
         {
             var content = await CreateMultipartContent(files, "file");
-            var result = await FinancialService.UploadExpensesAsync(content);
+            var result = await FinancialService.UploadExpensesAsync<string>(content);
 
             if (result.IsSuccess)
-                await AlertService.Show("Despesas atualizadas!", "alert-success");
+            {
+                // Coesão máxima: a mensagem exibida é a que o Back-end enviou dentro do envelope
+                await AlertService.Show(result.Message, "alert-success");
+            }
             else
-                await AlertService.Show(result, result.IsSuccess ? "alert-success" : "alert-danger");
+            {
+                await AlertService.Show(result.Message ?? "Erro ao processar", "alert-danger");
+            }
         }
         catch (Exception ex)
         {

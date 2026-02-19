@@ -1,7 +1,5 @@
-﻿using Core.Infrastructure.Common;
-using Server.Web.Infrastructure;
+﻿using Server.Web.Infrastructure;
 using Server.Web.Services.Interfaces;
-using Server.Web.Services.Models.GroupedModel;
 
 public class FinancialService : BaseHttpClient, IFinancialService
 {
@@ -12,20 +10,20 @@ public class FinancialService : BaseHttpClient, IFinancialService
     /// <summary>
     /// Realiza o upload e o processamento do extrato em uma única operação.
     /// </summary>
-    public async Task<OperationResult<StatementResult>> ProcessStatementAsync(MultipartFormDataContent content)
+    public async Task<ResponseEnvelope<T>> ProcessStatementAsync<T>(MultipartFormDataContent content)
     {
         // Agora utilizamos a rota consolidada e a chamada única.
         // O retorno do PostAsync já contém o JSON do StatementResponse.
         var response = await _http.PostAsync("api/statement/uploadStatement", content);
 
-        return await HandleResponse<StatementResult>(response);
+        return await HandleResponse<T>(response);
     }
 
-    public async Task<OperationResult<bool>> UploadExpensesAsync(MultipartFormDataContent content)
+    public async Task<ResponseEnvelope<T>> UploadExpensesAsync<T>(MultipartFormDataContent content)
     {
         // Atualizado para a nova rota semântica, se o backend também mudou para api/statement
         var response = await _http.PostAsync("api/statement/uploadExpenses", content);
 
-        return await HandleResponse<bool>(response);
+        return await HandleResponse<T>(response);
     }
 }

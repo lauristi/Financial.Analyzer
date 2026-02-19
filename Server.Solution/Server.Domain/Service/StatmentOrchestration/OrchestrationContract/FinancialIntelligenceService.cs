@@ -1,4 +1,5 @@
-﻿using Server.Api.Domain.Service.ProcessStatementService.Enum;
+﻿using Core.AI.Contracts.Interfaces;
+using Server.Api.Domain.Service.ProcessStatementService.Enum;
 using Server.Api.Domain.Service.ProcessStatementService.Model;
 using Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel;
 using Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
@@ -6,12 +7,16 @@ using Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Inte
 public class FinancialIntelligenceService : IFinancialIntelligenceService
 {
     private readonly IExpenseService _expenseService;
-
+    private readonly IFinancialAiAnalyst _aiAnalyst;
+    
     public FinancialIntelligenceService(IExpenseService expenseService)
     {
         _expenseService = expenseService;
     }
 
+    #region Metdos de Analise
+
+    #endregion
     public StatementResponse AnalyzeSpending(List<SpendingData> extractedTransactions, List<Expense> expenses)
     {
         var statementResponse = new StatementResponse();
@@ -22,9 +27,8 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
 
             string subjectUpper = item.Subject.ToUpper().Trim();
 
-
             // 01. Definição do Tipo Financeiro
-            // BB - Debito é negativo, Crédito é positivo    
+            // BB - Debito é negativo, Crédito é positivo
             // NUbank - somente tem debito , mas o valor é positivo
 
             item.IsCredit = false;
@@ -33,8 +37,7 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
                             subjectUpper.Contains("CREDITO") ||
                             subjectUpper.Contains("DEPÓSITO") ||
                             subjectUpper.Contains("DEPOSITO") ||
-                            subjectUpper.Contains("DEVOLVIDO"); 
-
+                            subjectUpper.Contains("DEVOLVIDO");
 
             // 02. Processamento por tipo de fluxo
             if (item.IsCredit)
@@ -59,11 +62,10 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
                 }
             }
 
-
             // 03. Determinação do Dono baseada no seu expenses.csv
             item.Owner = DetermineOwner(subjectUpper, expenses);
 
-            // 04. Cálculo do Score 
+            // 04. Cálculo do Score
             item.Score = CalculateFinancialImpactScore(item.Value);
 
             // 05. Acúmulo de Totais
@@ -80,7 +82,59 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
         return statementResponse;
     }
 
-    #region Metodos de apoio
+    public async Task<List<SpendingData>> AnalyzeSpendingUsingIAAsync(List<SpendingData> spendingList, CancellationToken ct = default)
+    {
+        // 1. Filtramos apenas os itens onde a categoria (Owner) ainda está vazia
+        var pendingItems = spendingList
+            .Where(s => string.IsNullOrWhiteSpace(s.Owner))
+            .ToList();
+
+        if (!pendingItems.Any())
+            return spendingList;
+
+        try
+        {
+            // 2. Extraímos apenas as descrições (Subject) para enviar à IA
+            var descriptions = pendingItems.Select(x => x.Subject ?? "Transação desconhecida").ToList();
+
+            // 3. Chamamos a infraestrutura de IA para processar o lote de uma só vez
+            // Note que aqui já usamos o novo método de lote que otimiza o Docker/Ollama
+            var aiResults = (await _aiAnalyst.AnalyzeTransactionBatchAsync(descriptions, ct)).ToList();
+
+            // 4. Mapeamos os resultados de volta para os nossos objetos de domínio
+            // Usamos um loop indexado para garantir a correspondência da ordem (conforme o prompt exige)
+            for (int i = 0; i < pendingItems.Count; i++)
+            {
+                if (i < aiResults.Count)
+                {
+                    var result = aiResults[i];
+                    var item = pendingItems[i];
+
+                    item.Owner = result.SuggestedCategory;
+                    item.ConfidenceLevel = result.ConfidenceLevel;
+                    item.IAExplanation = result.Reasoning;
+                    item.ProcessedByIA = true;
+                    item.SourceRule = "IA Local (Phi-3 Batch)";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Em caso de falha na IA, marcamos os itens para que o utilizador saiba no XLS
+            foreach (var item in pendingItems)
+            {
+                item.SourceRule = "Erro no processamento IA";
+                item.IAExplanation = ex.Message;
+            }
+
+            // Num cenário sénior, poderíamos fazer um log aqui (ex: Serilog)
+        }
+
+        return spendingList;
+    }
+
+
+    #region Helpers
 
     private string? DetermineOwner(string subjectUpper, List<Expense> expenses)
     {
@@ -171,6 +225,6 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
             }
         }
     }
-    
+
     #endregion Metodos de apoio
 }

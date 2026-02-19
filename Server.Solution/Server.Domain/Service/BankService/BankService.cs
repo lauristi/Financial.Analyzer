@@ -5,7 +5,6 @@ using Server.Api.Domain.Service.ProcessStatementService.Model;
 using Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel;
 using Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
 using System.Globalization;
-using System.Text;
 
 namespace Server.Api.Domain.Service.BankService
 {
