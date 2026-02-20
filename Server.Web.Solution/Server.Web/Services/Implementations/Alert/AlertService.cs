@@ -50,5 +50,28 @@ public class AlertService : IAlertService
         NotifyStateChanged();
     }
 
+    #region Mensagem de processamento
+
+    public void ShowLoading(string message)
+    {
+        Message = message;
+        CssClass = "alert-info"; // Ou uma classe específica para loading
+        IsVisible = true;
+        NotifyStateChanged();
+        // Note que não há Task.Delay e nem IsVisible = false aqui
+    }
+
+    public void Hide()
+    {
+        IsVisible = false;
+        NotifyStateChanged();
+    }
+
+    #endregion Mensagem de processamento
+
+    #region Helper
+
     private void NotifyStateChanged() => OnChange?.Invoke();
+
+    #endregion Helper
 }

@@ -45,15 +45,28 @@ public class StatementOrchestratorService : IStatementOrchestratorService
 
         var expenses = await _expenseService.GetAll();
         allSpending = _statementMapperService.MapToSpendingData(transactions);
-               
 
         // 03 - Inteligência Local (Síncrona/Heurística)
         statementResponse = _financialIntelligenceService.AnalyzeSpending(allSpending, expenses);
 
-        // 04 - Inteligência Artificial (Assíncrona/Probabilística)
+        // 04 - Inteligência Artificial (Assíncrona/Probabilística) e com Fallback
         // Passamos a lista e o método nos devolve a mesma lista atualizada
-        statementResponse.SpendingDataList = await _financialIntelligenceService.AnalyzeSpendingUsingIAAsync(statementResponse.SpendingDataList);
-
+        try
+        {
+            // Aumentamos a segurança com o Timeout
+            statementResponse.SpendingDataList = await _financialIntelligenceService
+                .AnalyzeSpendingUsingIAAsync(statementResponse.SpendingDataList)
+                .WaitAsync(TimeSpan.FromSeconds(15));
+        }
+        catch (TimeoutException)
+        {
+            ApplyIAFallback(statementResponse.SpendingDataList, "Tempo limite excedido (15s)");
+        }
+        catch (Exception ex)
+        {
+            // Aqui você pode logar o erro real (ex) se tiver um logger disponível
+            ApplyIAFallback(statementResponse.SpendingDataList, "Erro técnico no serviço de IA");
+        }
 
         //04  Cria o XLS
         statementResponse.FilePath = _statementXlsService.CreateStatementExcel(statementResponse.SpendingDataList);
@@ -66,4 +79,25 @@ public class StatementOrchestratorService : IStatementOrchestratorService
 
         return statementResponse;
     }
+
+    #region Hellper
+
+    private void ApplyIAFallback(List<SpendingData> list, string reason)
+    {
+        // Usamos o condicional para garantir que não tentamos iterar em lista nula
+        if (list == null) return;
+
+        foreach (var item in list)
+        {
+            // Só marcamos como falha se o item ainda não tiver sido processado com sucesso
+            if (!item.ProcessedByIA)
+            {
+                item.SourceRule = $"Fallback: {reason}";
+                item.IAExplanation = $"A categorização automática não foi concluída devido a: {reason}";
+                item.ConfidenceLevel = 0;
+            }
+        }
+    }
+
+    #endregion Hellper
 }

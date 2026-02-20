@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Core.AI.Infrastructure")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5c22970dd857938af88b946f3f409a3826b86cb8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e2186d5b91d563fca049190d17e74729c3f8ab95")]
 [assembly: System.Reflection.AssemblyProductAttribute("Core.AI.Infrastructure")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Core.AI.Infrastructure")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

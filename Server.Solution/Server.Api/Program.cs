@@ -67,7 +67,6 @@ builder.Services.AddScoped<IStatementOrchestratorService, StatementOrchestratorS
 
 #endregion 02. Injeção de Dependência e AutoMapper
 
-
 #region Injecao de Dependência para Analista Financeiro de IA   
 
 // Adiciona o arquivo de segredos à configuração
@@ -96,13 +95,6 @@ else
 builder.Services.AddScoped<IFinancialIntelligenceService, FinancialIntelligenceService>();
 
 #endregion
-
-
-
-
-
-
-
 
 #region 03. Configurações de Controladores e JSON
 

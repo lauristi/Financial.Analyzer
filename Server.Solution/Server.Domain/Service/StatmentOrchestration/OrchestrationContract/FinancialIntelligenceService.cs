@@ -8,10 +8,14 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
 {
     private readonly IExpenseService _expenseService;
     private readonly IFinancialAiAnalyst _aiAnalyst;
-    
-    public FinancialIntelligenceService(IExpenseService expenseService)
+
+    // Atualize o construtor para receber ambos os serviços
+    public FinancialIntelligenceService(
+        IExpenseService expenseService,
+        IFinancialAiAnalyst aiAnalyst)
     {
         _expenseService = expenseService;
+        _aiAnalyst = aiAnalyst; // Agora o campo deixará de ser nulo
     }
 
     #region Metdos de Analise
@@ -114,7 +118,7 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
                     item.ConfidenceLevel = result.ConfidenceLevel;
                     item.IAExplanation = result.Reasoning;
                     item.ProcessedByIA = true;
-                    item.SourceRule = "IA Local (Phi-3 Batch)";
+                    item.SourceRule = "Usando Serviço de I.A.";
                 }
             }
         }

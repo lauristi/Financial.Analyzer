@@ -10,7 +10,9 @@ namespace Core.AI.Infrastructure.Services
     {
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
-        private const string ApiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+        
+        // Tente esta URL exata. O sufixo ":generateContent" é obrigatório.
+        private const string ApiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
         public GeminiFinancialAnalyst(string apiKey)
         {
@@ -23,39 +25,49 @@ namespace Core.AI.Infrastructure.Services
             var results = await AnalyzeTransactionBatchAsync(new[] { description }, ct);
             return results.FirstOrDefault() ?? throw new Exception("Gemini falhou em retornar um resultado.");
         }
-
+        
         public async Task<IEnumerable<TransactionAnalysisResult>> AnalyzeTransactionBatchAsync(IEnumerable<string> descriptions, CancellationToken ct = default)
         {
-            // O Gemini aceita o System Prompt de forma estruturada na requisição
+            var promptFull = $"{AiPromptsConfiguration.FinancialAnalystSystemPrompt}\n\nTransações: {string.Join(", ", descriptions)}";
+
             var payload = new
             {
-                system_instruction = new { parts = new { text = AiPromptsConfiguration.FinancialAnalystSystemPrompt } },
-                contents = new { parts = new { text = $"Transações: {string.Join(", ", descriptions)}" } },
+                contents = new[]
+                {
+            new
+            {
+                parts = new[]
+                {
+                    new { text = promptFull }
+                }
+            }
+        },
                 generationConfig = new
                 {
-                    response_mime_type = "application/json", // Força o retorno em JSON nativo
-                    temperature = 0.2
+                    temperature = 0.2,
+                    // Remova temporariamente o response_mime_type para isolar o problema do 404
                 }
             };
 
             var jsonPayload = JsonSerializer.Serialize(payload);
-            var response = await _httpClient.PostAsync($"{ApiUrl}?key={_apiKey}",
+
+            // Verifique se não há espaços na _apiKey vinda do appsettings
+            var response = await _httpClient.PostAsync($"{ApiUrl}?key={_apiKey.Trim()}",
                 new StringContent(jsonPayload, Encoding.UTF8, "application/json"), ct);
 
             if (!response.IsSuccessStatusCode)
-                throw new Exception($"Erro na API do Gemini: {response.ReasonPhrase}");
+            {
+                var errorDetail = await response.Content.ReadAsStringAsync(ct);
+                throw new Exception($"Erro na API do Gemini: {response.StatusCode} - {errorDetail}");
+            }
 
             var responseBody = await response.Content.ReadAsStringAsync(ct);
-
-            // Aqui extraímos o conteúdo do campo 'text' dentro da estrutura de resposta do Gemini
-            // e desserializamos para o nosso TransactionAnalysisResult.
             return ParseGeminiResponse(responseBody);
         }
 
+
         private IEnumerable<TransactionAnalysisResult> ParseGeminiResponse(string rawJson)
         {
-            // O Gemini retorna o JSON dentro de uma estrutura: candidates[0].content.parts[0].text
-            // Precisamos extrair essa string e converter para nossa Lista.
             using var doc = JsonDocument.Parse(rawJson);
             var textResult = doc.RootElement
                 .GetProperty("candidates")[0]
@@ -63,7 +75,17 @@ namespace Core.AI.Infrastructure.Services
                 .GetProperty("parts")[0]
                 .GetProperty("text").GetString();
 
-            return JsonSerializer.Deserialize<List<TransactionAnalysisResult>>(textResult!, new JsonSerializerOptions
+            if (string.IsNullOrWhiteSpace(textResult))
+                return new List<TransactionAnalysisResult>();
+
+            // Limpeza de possíveis blocos de código Markdown
+            var cleanedJson = textResult.Trim();
+            if (cleanedJson.StartsWith("```json"))
+                cleanedJson = cleanedJson.Replace("```json", "").Replace("```", "").Trim();
+            else if (cleanedJson.StartsWith("```"))
+                cleanedJson = cleanedJson.Replace("```", "").Trim();
+
+            return JsonSerializer.Deserialize<List<TransactionAnalysisResult>>(cleanedJson, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             }) ?? new List<TransactionAnalysisResult>();

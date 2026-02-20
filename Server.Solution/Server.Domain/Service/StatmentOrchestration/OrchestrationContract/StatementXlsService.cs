@@ -27,21 +27,25 @@ namespace Server.Api.Domain.Service.InfrastrutureService
 
             using (var package = new ExcelPackage(fileInfo))
             {
-                // Criamos a planilha de lançamentos
                 var worksheet = package.Workbook.Worksheets.Add("Lançamentos");
 
-                // 1. Cabeçalho formatado
-                string[] headers = { "Data", "Banco", "Descrição", "Categoria", "Valor", "Score" };
+                // 1. Cabeçalhos (Índices: 1 a 9)
+                string[] headers = {
+            "Data", "Banco", "Descrição", "Categoria", "Valor",
+            "Score", "Origem", "IA: Confiança", "IA: Justificativa"
+        };
+
                 for (int i = 0; i < headers.Length; i++)
                 {
-                    worksheet.Cells[1, i + 1].Value = headers[i];
-                    worksheet.Cells[1, i + 1].Style.Font.Bold = true;
-                    worksheet.Cells[1, i + 1].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                    worksheet.Cells[1, i + 1].Style.Fill.BackgroundColor.SetColor(Color.LightGray);
+                    var cell = worksheet.Cells[1, i + 1];
+                    cell.Value = headers[i];
+                    cell.Style.Font.Bold = true;
+                    cell.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    cell.Style.Fill.BackgroundColor.SetColor(Color.LightGray);
+                    cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
                 }
 
-                // 2. Preenchimento dos dados vindos do objeto
-                // 2. Preenchimento dos dados vindos do objeto
+                // 2. Preenchimento
                 int currentRow = 2;
                 foreach (var item in spendingDataList.OrderByDescending(x => x.Owner))
                 {
@@ -49,61 +53,71 @@ namespace Server.Api.Domain.Service.InfrastrutureService
                     worksheet.Cells[currentRow, 2].Value = item.Bank;
                     worksheet.Cells[currentRow, 3].Value = item.Subject;
                     worksheet.Cells[currentRow, 4].Value = item.Owner;
-
-                    // Inserção do valor numérico absoluto (sem sinal de - ou +)
-                    // Garantimos que o Excel receba um decimal para aplicar a formatação Money
                     worksheet.Cells[currentRow, 5].Value = Math.Abs(item.Value);
-
                     worksheet.Cells[currentRow, 6].Value = item.Score;
 
-                    //COL 06 Formatação de cor baseada no valor da coluna
-                    var scoreCell = worksheet.Cells[currentRow, 6];
-                    scoreCell.Style.Font.Bold = true; // Negrito para todos para facilitar a leitura
+                    //---------------------------------------------------------------------------------
+                    //COUNAS DE I.A
+                    //---------------------------------------------------------------------------------
 
-                    switch (item.Score?.ToUpper())
+                    //01 Coluna 7: Origem da Regra (Local ou IA)
+                    worksheet.Cells[currentRow, 7].Value = item.SourceRule; // "Local" ou "IA"
+
+                    //02 Coluna 8: Confiança
+                    var confCell = worksheet.Cells[currentRow, 8];
+                    if (item.ConfidenceLevel.HasValue)
                     {
-                        case "ALTO":
-                            scoreCell.Style.Font.Color.SetColor(Color.Red);
-                            break;
-
-                        case "MEDIO":
-                        case "MÉDIO":
-                            scoreCell.Style.Font.Color.SetColor(Color.Orange);
-                            break;
-
-                        case "BAIXO":
-                            scoreCell.Style.Font.Color.SetColor(Color.Gray); // Use Gray ou Color.FromArgb(128, 128, 128)
-                            break;
-
-                        default:
-                            scoreCell.Style.Font.Color.SetColor(Color.Black);
-                            break;
+                        confCell.Value = item.ConfidenceLevel.Value;
+                        confCell.Style.Numberformat.Format = "0%";
+                        if (item.ProcessedByIA && item.ConfidenceLevel < 0.6)
+                            confCell.Style.Font.Color.SetColor(Color.OrangeRed);
                     }
 
-                    //COL 05 Formatação de cor baseada no sinal na Coluna
-                    worksheet.Cells[currentRow, 5].Style.Font.Color.SetColor(
-                        item.IsCredit ? Color.Green : Color.Red
-                    );
+                    //03 Coluna 9: IAExplanation
+                    worksheet.Cells[currentRow, 9].Value = item.IAExplanation;
+
+                    // Cores de Score e Valor (Mantidas conforme seu original)
+                    ApplyLegacyFormatting(worksheet, currentRow, item);
 
                     currentRow++;
                 }
 
-                // 3. Formatação da coluna de valor (Coluna 5/E)
-                // Definimos o intervalo da segunda linha até a última preenchida
-                var valueColumn = worksheet.Cells[2, 5, currentRow - 1, 5];
+                // 3. Ajustes de Layout
+                var lastRow = currentRow - 1;
 
-                // Formato numérico: milhar com vírgula, duas casas decimais, sem símbolo monetário
-                valueColumn.Style.Numberformat.Format = "#,##0.00";
-                valueColumn.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Right;
+                // Formatação da Coluna de Valor (E)
+                var valueCol = worksheet.Cells[2, 5, lastRow, 5];
+                valueCol.Style.Numberformat.Format = "#,##0.00";
 
-                worksheet.Cells.AutoFitColumns();
+                // Ajuste de largura: Colunas 1 a 8 automáticas
+                worksheet.Cells[1, 1, lastRow, 8].AutoFitColumns();
+
+                // Ajuste manual da Coluna 9 (Justificativa) para evitar que estique demais
+                worksheet.Column(9).Width = 70;
+                worksheet.Column(9).Style.WrapText = true; // Quebra o texto para baixo
+                worksheet.Column(9).Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Top;
+
                 package.Save();
             }
-
             return fullPathWithArchive;
         }
 
         #region Helpers
+
+        private void ApplyLegacyFormatting(ExcelWorksheet worksheet, int row, SpendingData item)
+        {
+            var scoreCell = worksheet.Cells[row, 6];
+            scoreCell.Style.Font.Bold = true;
+            switch (item.Score?.ToUpper())
+            {
+                case "ALTO": scoreCell.Style.Font.Color.SetColor(Color.Red); break;
+                case "MEDIO":
+                case "MÉDIO": scoreCell.Style.Font.Color.SetColor(Color.Orange); break;
+                case "BAIXO": scoreCell.Style.Font.Color.SetColor(Color.Gray); break;
+            }
+
+            worksheet.Cells[row, 5].Style.Font.Color.SetColor(item.IsCredit ? Color.Green : Color.Red);
+        }
 
         private bool PrepareXlsEnviroment(FileInfo fileInfo)
         {
