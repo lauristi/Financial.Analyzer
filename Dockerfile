@@ -2,26 +2,24 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# 1. Copia os arquivos de solução
+# 1. Copia todos os arquivos .sln e .csproj mantendo a estrutura de pastas
+# Isso garante que o 'dotnet restore' encontre todos os projetos listados na Solution
 COPY ["Server.Solution/Server.Solution.sln", "Server.Solution/"]
+COPY ["Server.Solution/Server.Api/*.csproj", "Server.Solution/Server.Api/"]
+COPY ["Server.Solution/Server.Domain/*.csproj", "Server.Solution/Server.Domain/"]
+COPY ["Server.Solution/Server.Tests/*.csproj", "Server.Solution/Server.Tests/"]
 
-# 2. Copia os arquivos .csproj
-COPY ["Server.Solution/Server.Api/Server.Api.csproj", "Server.Solution/Server.Api/"]
-COPY ["Server.Solution/Server.Domain/Server.Domain.csproj", "Server.Solution/Server.Domain/"]
+# Ajuste para a pasta Shared conforme detectado anteriormente
+COPY ["Shared/*.csproj", "Shared/"]
 
-# --- AJUSTE AQUI ---
-# Se a pasta no seu repositório for "Shared", remova o ponto. 
-# Se houver dúvida, podemos usar um caractere curinga:
-COPY ["Shared*", "Shared/"] 
-# -------------------
-
-# 3. Restaura as dependências
+# 2. Restaura as dependências
+# Agora ele encontrará os projetos de Testes e Infrastructure
 RUN dotnet restore "Server.Solution/Server.Solution.sln"
 
-# 4. Copia todo o conteúdo
+# 3. Copia todo o restante do código fonte
 COPY . .
 
-# 5. Publica
+# 4. Publica a API
 WORKDIR "/src/Server.Solution/Server.Api"
 RUN dotnet publish "Server.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
