@@ -5,11 +5,14 @@ pipeline {
         API_NAME = 'financial-api'
         WEB_NAME = 'financial-web'
         PROJECT_LABEL = 'financial-analyzer'
+        // Definimos a porta como variável para facilitar manutenção
+        API_PORT = '5020'
     }
 
     stages {
         stage('01- Checkout') {
             steps {
+                // Baixa o código do repositório
                 checkout scm
             }
         }
@@ -17,16 +20,20 @@ pipeline {
         stage('02- Build & Deploy API') {
             steps {
                 script {
-                    // Build usando o Dockerfile da raiz
+                    // 1. Build da imagem: O ponto (.) indica que o contexto é a raiz
                     sh "docker build -t ${API_NAME}:latest -f Dockerfile ."
                     
-                    // Limpeza e Execução com Label para o Portainer
+                    // 2. Parada e remoção segura do container anterior
+                    // O '|| true' evita que o Jenkins falhe se o container não existir
                     sh "docker stop ${API_NAME} || true && docker rm ${API_NAME} || true"
+                    
+                    // 3. Execução do novo container
+                    // Note que mantivemos o label para integração com o Portainer
                     sh """
                         docker run -d \
                         --name ${API_NAME} \
                         --label "com.docker.compose.project=${env.PROJECT_LABEL}" \
-                        -p 5020:5020 \
+                        -p ${API_PORT}:${API_PORT} \
                         --restart unless-stopped \
                         ${API_NAME}:latest
                     """
@@ -34,13 +41,11 @@ pipeline {
             }
         }
 
-        stage('03- Build & Deploy Web') {
+        stage('03- Build & Deploy Web (Placeholder)') {
             steps {
                 script {
-                    // Aqui usaremos o mesmo Dockerfile, mas você precisará criar um 
-                    // 'Dockerfile.web' na raiz alterando apenas o WORKDIR de publicação.
-                    // Por enquanto, vamos focar em subir a API primeiro.
-                    echo "Aguardando Dockerfile.web para prosseguir com o deploy da Web."
+                    // Este bloco será preenchido quando criarmos o Dockerfile.web
+                    echo "Aguardando definição do Dockerfile.web para o projeto Server.Web"
                 }
             }
         }
@@ -48,7 +53,14 @@ pipeline {
 
     post {
         always {
+            // Limpa o workspace para não ocupar espaço em disco no servidor Jenkins
             cleanWs()
+        }
+        success {
+            echo "Deploy da API realizado com sucesso, Hal."
+        }
+        failure {
+            echo "Falha no deploy. Verifique os logs do Docker acima."
         }
     }
 }

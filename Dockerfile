@@ -2,21 +2,26 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copia a Solution e os projetos usando os caminhos da sua imagem
-COPY ["Financial.Analyzer/Financial.Analyzer.sln", "Financial.Analyzer/"]
+# 1. Copia os arquivos de solução
+COPY ["Server.Solution/Server.Solution.sln", "Server.Solution/"]
+
+# 2. Copia os arquivos .csproj baseados na sua listagem real
 COPY ["Server.Solution/Server.Api/Server.Api.csproj", "Server.Solution/Server.Api/"]
-COPY ["Shared.Solution/Core.Infrastructure/Core.Infrastructure.csproj", "Shared.Solution/Core.Infrastructure/"]
-COPY ["Api/Server.Domain/Server.Domain.csproj", "Api/Server.Domain/"]
+COPY ["Server.Solution/Server.Domain/Server.Domain.csproj", "Server.Solution/Server.Domain/"]
+# Nota: O projeto Shared na sua lista aparece apenas como "Shared.", ajustado para a pasta correspondente
+COPY ["Shared./", "Shared./"] 
 
-# Restaura as dependências
-RUN dotnet restore "Financial.Analyzer/Financial.Analyzer.sln"
+# 3. Restaura as dependências usando a solução principal
+RUN dotnet restore "Server.Solution/Server.Solution.sln"
 
-# Copia todo o conteúdo do repositório
+# 4. Copia todo o conteúdo do repositório
 COPY . .
 
-# Muda para a pasta da API para publicar
+# 5. Define o diretório de trabalho para a pasta da API
 WORKDIR "/src/Server.Solution/Server.Api"
-RUN dotnet publish "Server.Api.csproj" -c Release -o /app/publish
+
+# 6. Publica o projeto
+RUN dotnet publish "Server.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Estágio de Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
