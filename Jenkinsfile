@@ -35,8 +35,8 @@ pipeline {
                         --network proxy_network \
                         --label "com.docker.compose.project=${env.PROJECT_LABEL}" \
                         -p ${API_PORT}:${API_PORT} \
-                        -v /home/sysdba/financial_data/Expenses:/app/Expenses \
-                        -v /home/sysdba/financial_data/Statement:/app/Statement \
+                        -v /mnt/docker-data/Apps/FinancialAnalyzer/Expenses:/app/Expenses \
+                        -v /mnt/docker-data/Apps/FinancialAnalyzer/Statements:/app/Statements \
                         --restart unless-stopped \
                         ${API_NAME}:latest
                     """
