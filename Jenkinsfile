@@ -5,14 +5,14 @@ pipeline {
         API_NAME = 'financial-api'
         WEB_NAME = 'financial-web'
         PROJECT_LABEL = 'financial-analyzer'
-        // Definimos a porta como variável para facilitar manutenção
+        // Definimos a porta como variï¿½vel para facilitar manutenï¿½ï¿½o
         API_PORT = '5020'
     }
 
     stages {
         stage('01- Checkout') {
             steps {
-                // Baixa o código do repositório
+                // Baixa o cï¿½digo do repositï¿½rio
                 checkout scm
             }
         }
@@ -20,15 +20,15 @@ pipeline {
         stage('02- Build & Deploy API') {
             steps {
                 script {
-                    // 1. Build da imagem: O ponto (.) indica que o contexto é a raiz
+                    // 1. Build da imagem: O ponto (.) indica que o contexto ï¿½ a raiz
                     sh "docker build -t ${API_NAME}:latest -f Dockerfile ."
                     
-                    // 2. Parada e remoção segura do container anterior
-                    // O '|| true' evita que o Jenkins falhe se o container não existir
+                    // 2. Parada e remoï¿½ï¿½o segura do container anterior
+                    // O '|| true' evita que o Jenkins falhe se o container nï¿½o existir
                     sh "docker stop ${API_NAME} || true && docker rm ${API_NAME} || true"
                     
-                    // 3. Execução do novo container
-                    // Note que mantivemos o label para integração com o Portainer
+                    // 3. Execuï¿½ï¿½o do novo container
+                    // Note que mantivemos o label para integraï¿½ï¿½o com o Portainer
                     sh """
                         docker run -d \
                         --name ${API_NAME} \
@@ -41,11 +41,18 @@ pipeline {
             }
         }
 
-        stage('03- Build & Deploy Web (Placeholder)') {
+       stage('03- Build & Deploy Web') {
             steps {
                 script {
-                    // Este bloco será preenchido quando criarmos o Dockerfile.web
-                    echo "Aguardando definição do Dockerfile.web para o projeto Server.Web"
+                    // Gera a imagem do Frontend
+                    sh "docker build -t financial-web:latest -f Dockerfile.web ."
+                    
+                    // Remove versÃ£o anterior se existir
+                    sh "docker stop financial-web || true"
+                    sh "docker rm financial-web || true"
+                    
+                    // Inicia o container na porta 5021 e conecta na rede do Proxy
+                    sh "docker run -d --name financial-web --network proxy_network -p 5021:5021 --restart unless-stopped financial-web:latest"
                 }
             }
         }
@@ -53,7 +60,7 @@ pipeline {
 
     post {
         always {
-            // Limpa o workspace para não ocupar espaço em disco no servidor Jenkins
+            // Limpa o workspace para nï¿½o ocupar espaï¿½o em disco no servidor Jenkins
             cleanWs()
         }
         success {

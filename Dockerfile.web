@@ -1,0 +1,28 @@
+# Estágio de Build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# 1. Copia as soluções
+COPY ["Server.Web.Solution/Server.Web.Solution.sln", "Server.Web.Solution/"]
+COPY ["Shared.Solution/Shared.Solution.sln", "Shared.Solution/"]
+
+# 2. Copia os arquivos .csproj do Web e as dependências Shared
+COPY ["Server.Web.Solution/Server.Web/Server.Web.csproj", "Server.Web.Solution/Server.Web/"]
+COPY ["Shared.Solution/Core.Infrastructure/Core.Infrastructure.csproj", "Shared.Solution/Core.Infrastructure/"]
+
+# 3. Restaura as dependências
+RUN dotnet restore "Server.Web.Solution/Server.Web.Solution.sln"
+
+# 4. Copia todo o código e publica
+COPY . .
+WORKDIR "/src/Server.Web.Solution/Server.Web"
+RUN dotnet publish "Server.Web.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+# Estágio de Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+COPY --from=build /app/publish .
+
+ENV ASPNETCORE_URLS=http://+:5021
+EXPOSE 5021
+ENTRYPOINT ["dotnet", "Server.Web.dll"]
