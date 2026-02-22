@@ -1,20 +1,39 @@
-
-## Visual Studio Temp Files
+## --- Visual Studio & IDEs ---
 .vs/
 [Bb]in/
-[Obj]/
+[Oo]bj/
 *.suo
 *.user
 *.userosscache
 *.sln.docstates
+.vscode/
 
-## .NET Core
+## --- .NET Core / .NET 8 ---
+# Arquivos de restauração e builds temporários
 project.lock.json
 project.fragment.lock.json
 artifacts/
+TestResults/
 
-## Publish Output
+## --- Publish Output ---
+# Pasta de saída do comando 'dotnet publish'
 publish/
+[Pp]ublish/
 
-## Configuration Secrets
+## --- Docker & CI/CD ---
+# Impede que logs do Jenkins ou arquivos temporários do Docker subam para o Git
+*.log
+.dockerignore
+# Nota: O Dockerfile e Jenkinsfile DEVEM ser rastreados, por isso não entram aqui.
+
+## --- Configuration & Secrets ---
+# Proteção de segredos e configurações locais
 **/appsettings.Secrets.json
+**/appsettings.Development.json
+# Se você usar segredos do usuário do .NET (UserSecrets)
+secrets.json
+.env
+
+## --- OS Generated Files ---
+.DS_Store
+thumbs.db
