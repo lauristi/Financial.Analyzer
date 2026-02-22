@@ -9,7 +9,7 @@ namespace Server.Api.Domain.Service.ExpenseService
 
         public ExpenseService(string appPath)
         {
-            _fullPath = Path.Combine(appPath, "expenses", "expenses.csv");
+            _fullPath = Path.Combine(appPath, "Expenses", "expenses.csv");
         }
 
         public async Task SaveFileAsync(IFormFile file)
