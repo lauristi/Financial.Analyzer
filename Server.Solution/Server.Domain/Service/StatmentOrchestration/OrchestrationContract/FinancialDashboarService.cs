@@ -1,0 +1,41 @@
+﻿using Server.Api.Domain.Service.ProcessStatementService.Enum;
+using Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel;
+using Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
+
+namespace Server.Domain.Service.StatmentOrchestration.OrchestrationContract
+{
+    public class FinancialDashboarService : IFinancialDashboardService
+    {
+        public void GerateDashboardTotals(StatementResponse processedData)
+        {
+            foreach (var item in processedData.SpendingDataList)
+            {
+                if (item.FinancialType == FinancialType.Ignore) return;
+
+                if (item.IsCredit)
+                {
+                    processedData.Dashboard.TotalCredit += item.Value;
+                }
+                else
+                {
+                    processedData.Dashboard.TotalDebit += item.Value;
+
+                    switch (item.FinancialType)
+                    {
+                        case FinancialType.SupermarketDebit:
+                            processedData.Dashboard.Supermarket += item.Value;
+                            break;
+
+                        case FinancialType.PharmacyDebit:
+                            processedData.Dashboard.Pharmacy += item.Value;
+                            break;
+
+                        case FinancialType.ExtraDebit:
+                            processedData.Dashboard.Extra += item.Value;
+                            break;
+                    }
+                }
+            }
+        }
+    }
+}

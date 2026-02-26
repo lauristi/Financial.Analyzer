@@ -69,7 +69,7 @@ public class StatementOrchestratorService : IStatementOrchestratorService
         }
 
         //04  Cria o XLS
-        statementResponse.FilePath = _statementXlsService.CreateStatementExcel(statementResponse.SpendingDataList);
+        await _statementXlsService.CreatePreFormatedExcelAsync(statementResponse);
 
         if (System.IO.File.Exists(statementResponse.FilePath))
         {

@@ -3,19 +3,23 @@ using Server.Api.Domain.Service.ProcessStatementService.Enum;
 using Server.Api.Domain.Service.ProcessStatementService.Model;
 using Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel;
 using Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
+using Server.Domain.Service.StatmentOrchestration.OrchestrationContract;
+using Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
 
 public class FinancialIntelligenceService : IFinancialIntelligenceService
 {
     private readonly IExpenseService _expenseService;
     private readonly IFinancialAiAnalyst _aiAnalyst;
+    private readonly IFinancialDashboardService _financialDashboardService;
 
     // Atualize o construtor para receber ambos os serviços
-    public FinancialIntelligenceService(
-        IExpenseService expenseService,
-        IFinancialAiAnalyst aiAnalyst)
+    public FinancialIntelligenceService(IExpenseService expenseService,
+                                        IFinancialAiAnalyst aiAnalyst,
+                                        IFinancialDashboardService financialDashboardService)
     {
         _expenseService = expenseService;
         _aiAnalyst = aiAnalyst; // Agora o campo deixará de ser nulo
+        _financialDashboardService = financialDashboardService;
     }
 
     #region Metdos de Analise
@@ -72,15 +76,15 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
             // 04. Cálculo do Score
             item.Score = CalculateFinancialImpactScore(item.Value);
 
-            // 05. Acúmulo de Totais
-            UpdateTotals(item, statementResponse);
-
-            //06 Ajuste do valor para negativo se for débito
+            //05 Ajuste do valor para negativo se for débito
             if (!item.IsCredit)
             {
                 item.Value = -Math.Abs(item.Value);
             }
         }
+
+        //06 Com tudo processado , geramos os totais para o dashboard   
+        _financialDashboardService.GerateDashboardTotals(statementResponse);
 
         statementResponse.SpendingDataList = extractedTransactions;
         return statementResponse;
@@ -200,35 +204,7 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
 
         return "ALTO";
     }
-
-    private void UpdateTotals(SpendingData item, StatementResponse totals)
-    {
-        if (item.FinancialType == FinancialType.Ignore) return;
-
-        if (item.IsCredit)
-        {
-            totals.Dashboard.TotalCredit += item.Value;
-        }
-        else
-        {
-            totals.Dashboard.TotalDebit += item.Value;
-
-            switch (item.FinancialType)
-            {
-                case FinancialType.SupermarketDebit:
-                    totals.Dashboard.Supermarket += item.Value;
-                    break;
-
-                case FinancialType.PharmacyDebit:
-                    totals.Dashboard.Pharmacy += item.Value;
-                    break;
-
-                case FinancialType.ExtraDebit:
-                    totals.Dashboard.Extra += item.Value;
-                    break;
-            }
-        }
-    }
+     
 
     #endregion Metodos de apoio
 }

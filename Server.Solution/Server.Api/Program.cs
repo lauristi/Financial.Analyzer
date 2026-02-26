@@ -3,6 +3,7 @@ using Core.AI.Infrastructure.Services;
 using Core.Infrastructure.Middlewares;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi.Models;
 using Server.Api.Domain.Infrastructure.EncryptionLib;
 using Server.Api.Domain.Service.BankService;
@@ -15,6 +16,7 @@ using Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract;
 using Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract.Interface;
 using Server.Api.Domain.Service.SharedService.Interface;
 using Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
+using Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
 using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -59,7 +61,18 @@ builder.Services.AddScoped<IBankService, BankService>();
 builder.Services.AddScoped<IFinancialIntelligenceService, FinancialIntelligenceService>();
 
 builder.Services.AddScoped<IExpenseService>(sp => new ExpenseService(appRootPath));
-builder.Services.AddScoped<IStatementXlsService>(sp => new StatementXlsService(appRootPath));
+
+
+// Registro do Serviço de Excel utilizando uma "Factory" (Fábrica) customizada.
+// Usamos este formato porque o StatementXlsService possui um construtor misto:
+builder.Services.AddScoped<IStatementXlsService>(sp =>
+{
+    //01  Resolve o serviço de Dashboard que já está no container
+    //02  Retorna a instância da classe passando o parâmetro manual e o serviço resolvido
+    var dashboardService = sp.GetRequiredService<IFinancialDashboardService>();
+
+    return new StatementXlsService(appRootPath, dashboardService);
+});
 
 builder.Services.AddScoped<IStatementService, StatementService>();
 builder.Services.AddScoped<IStatementMapperService, StatementMapperService>();
