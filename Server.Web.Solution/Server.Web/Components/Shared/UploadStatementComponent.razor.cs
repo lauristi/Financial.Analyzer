@@ -20,7 +20,6 @@ public partial class UploadStatementComponent : ComponentBase
         files = e.GetMultipleFiles();
         StateHasChanged();
     }
-       
 
     protected async Task Upload()
     {
@@ -51,5 +50,4 @@ public partial class UploadStatementComponent : ComponentBase
             }
         }
     }
-
 }

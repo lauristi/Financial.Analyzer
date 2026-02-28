@@ -6,6 +6,7 @@ namespace Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.
     public interface IFinancialIntelligenceService
     {
         StatementResponse AnalyzeSpending(List<SpendingData> extractedTransactions, List<Expense> expenses);
+
         Task<List<SpendingData>> AnalyzeSpendingUsingIAAsync(List<SpendingData> spendingList, CancellationToken ct = default);
     }
 }

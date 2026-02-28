@@ -13,7 +13,8 @@ namespace Server.Api.Domain.Service.ProcessStatementService.Model
 
         public FinancialType FinancialType { get; set; }
 
-        public string? Owner { get; set; }
+        public string? Category { get; set; }
+        public string? CategoryOwner { get; set; }
         public string? Bank { get; set; }
         public string? Score { get; set; }
 
@@ -35,7 +36,7 @@ namespace Server.Api.Domain.Service.ProcessStatementService.Model
         public double? ConfidenceLevel { get; set; }
 
         /// <summary>
-        /// Armazena o motivo ou a justificativa da IA para tal categoria, 
+        /// Armazena o motivo ou a justificativa da IA para tal categoria,
         /// útil para conferência do usuário.
         /// </summary>
         public string? IAExplanation { get; set; }

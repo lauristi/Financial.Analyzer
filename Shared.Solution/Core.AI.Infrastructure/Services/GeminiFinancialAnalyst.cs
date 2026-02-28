@@ -10,7 +10,7 @@ namespace Core.AI.Infrastructure.Services
     {
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
-        
+
         // Tente esta URL exata. O sufixo ":generateContent" é obrigatório.
         private const string ApiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
@@ -25,7 +25,7 @@ namespace Core.AI.Infrastructure.Services
             var results = await AnalyzeTransactionBatchAsync(new[] { description }, ct);
             return results.FirstOrDefault() ?? throw new Exception("Gemini falhou em retornar um resultado.");
         }
-        
+
         public async Task<IEnumerable<TransactionAnalysisResult>> AnalyzeTransactionBatchAsync(IEnumerable<string> descriptions, CancellationToken ct = default)
         {
             var promptFull = $"{AiPromptsConfiguration.FinancialAnalystSystemPrompt}\n\nTransações: {string.Join(", ", descriptions)}";
@@ -64,7 +64,6 @@ namespace Core.AI.Infrastructure.Services
             var responseBody = await response.Content.ReadAsStringAsync(ct);
             return ParseGeminiResponse(responseBody);
         }
-
 
         private IEnumerable<TransactionAnalysisResult> ParseGeminiResponse(string rawJson)
         {

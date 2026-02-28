@@ -17,6 +17,7 @@
         Task Show(string message, string css);
 
         void ShowLoading(string message);
+
         void Hide();
     }
 }

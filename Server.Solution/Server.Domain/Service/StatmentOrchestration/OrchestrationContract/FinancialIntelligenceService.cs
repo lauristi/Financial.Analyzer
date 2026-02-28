@@ -3,7 +3,6 @@ using Server.Api.Domain.Service.ProcessStatementService.Enum;
 using Server.Api.Domain.Service.ProcessStatementService.Model;
 using Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel;
 using Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
-using Server.Domain.Service.StatmentOrchestration.OrchestrationContract;
 using Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
 
 public class FinancialIntelligenceService : IFinancialIntelligenceService
@@ -22,9 +21,6 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
         _financialDashboardService = financialDashboardService;
     }
 
-    #region Metdos de Analise
-
-    #endregion
     public StatementResponse AnalyzeSpending(List<SpendingData> extractedTransactions, List<Expense> expenses)
     {
         var statementResponse = new StatementResponse();
@@ -48,6 +44,8 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
                             subjectUpper.Contains("DEVOLVIDO");
 
             // 02. Processamento por tipo de fluxo
+            Expense expense = new Expense { Origin = null, Category = null, CategoryOwner = null };    
+            
             if (item.IsCredit)
             {
                 // Se for crédito, decidimos se é um crédito que nos interessa ou se ignoramos ruído
@@ -65,13 +63,15 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
                 else
                 {
                     // Se for um débito real, buscamos a categoria no CSV
-                    var owner = DetermineOwner(subjectUpper, expenses);
-                    item.FinancialType = MapToFinancialType(owner, item.IsCredit);
+                    expense = DetermineOwner(subjectUpper, expenses);
+                    item.FinancialType = MapToFinancialType(expense, item.IsCredit);
                 }
             }
 
             // 03. Determinação do Dono baseada no seu expenses.csv
-            item.Owner = DetermineOwner(subjectUpper, expenses);
+            expense = DetermineOwner(subjectUpper, expenses);
+            item.Category = expense.Category;
+            item.CategoryOwner = expense.CategoryOwner; 
 
             // 04. Cálculo do Score
             item.Score = CalculateFinancialImpactScore(item.Value);
@@ -83,7 +83,7 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
             }
         }
 
-        //06 Com tudo processado , geramos os totais para o dashboard   
+        //06 Com tudo processado , geramos os totais para o dashboard
         _financialDashboardService.GerateDashboardTotals(statementResponse);
 
         statementResponse.SpendingDataList = extractedTransactions;
@@ -94,7 +94,7 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
     {
         // 1. Filtramos apenas os itens onde a categoria (Owner) ainda está vazia
         var pendingItems = spendingList
-            .Where(s => string.IsNullOrWhiteSpace(s.Owner))
+            .Where(s => string.IsNullOrWhiteSpace(s.Category))
             .ToList();
 
         if (!pendingItems.Any())
@@ -118,7 +118,7 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
                     var result = aiResults[i];
                     var item = pendingItems[i];
 
-                    item.Owner = result.SuggestedCategory;
+                    item.Category = result.SuggestedCategory;
                     item.ConfidenceLevel = result.ConfidenceLevel;
                     item.IAExplanation = result.Reasoning;
                     item.ProcessedByIA = true;
@@ -141,16 +141,24 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
         return spendingList;
     }
 
-
     #region Helpers
 
-    private string? DetermineOwner(string subjectUpper, List<Expense> expenses)
+    private Expense DetermineOwner(string subjectUpper, List<Expense> expenses)
     {
         var match = expenses.FirstOrDefault(e =>
             !string.IsNullOrEmpty(e.Origin) &&
             subjectUpper.Contains(e.Origin.ToUpper().Trim()));
 
-        return match?.Owner?.Trim();
+        Expense expense = new Expense { Origin = null, Category = null, CategoryOwner = null };
+
+        if (match == null)
+            return new Expense { Category = null };
+
+        expense.Origin = match.Origin;
+        expense.Category = match.Category;
+        expense.CategoryOwner = match.CategoryOwner;
+
+        return expense;
     }
 
     private bool IsInternalMovement(string subjectUpper)
@@ -170,9 +178,9 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
         return termsToIgnore.Any(term => subjectUpper.Contains(term));
     }
 
-    private FinancialType MapToFinancialType(string? owner, bool isCredit)
+    private FinancialType MapToFinancialType(Expense expense, bool isCredit)
     {
-        switch (owner?.ToUpper())
+        switch (expense.Category?.ToUpper())
         {
             case "MERCADO":
                 return FinancialType.SupermarketDebit;
@@ -204,7 +212,6 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
 
         return "ALTO";
     }
-     
 
-    #endregion Metodos de apoio
+    #endregion Helpers
 }

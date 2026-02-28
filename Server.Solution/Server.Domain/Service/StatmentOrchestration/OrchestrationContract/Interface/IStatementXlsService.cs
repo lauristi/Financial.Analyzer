@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Http;
-using Server.Api.Domain.Service.ProcessStatementService.Model;
 using Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel;
 
 namespace Server.Api.Domain.Service.InfrastrutureService.Interface
@@ -13,6 +12,7 @@ namespace Server.Api.Domain.Service.InfrastrutureService.Interface
         /// <param name="statementResponse">Objeto contendo a lista de transações e o dashboard.</param>
         /// <returns>O caminho do arquivo gerado em caso de sucesso.</returns>
         Task<StatementResponse> CreatePreFormatedExcelAsync(StatementResponse statementResponse);
+
         Task<StatementResponse> CreateFinalExcelAsync(IFormFile file);
     }
 }

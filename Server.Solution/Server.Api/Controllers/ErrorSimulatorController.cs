@@ -45,7 +45,7 @@ namespace Server.Api.Controllers
                 "A senha deve conter caracteres especiais."
             };
 
-            var result = ResponseEnvelope<bool>.Failure("Foram encontrados erros de validação.","VALIDATION_001", erros);
+            var result = ResponseEnvelope<bool>.Failure("Foram encontrados erros de validação.", "VALIDATION_001", erros);
 
             return BadRequest(new ApiErrorResponse
             {

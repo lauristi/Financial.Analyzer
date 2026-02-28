@@ -23,8 +23,8 @@ namespace Server.Api.Controllers
         #region "Upload"
 
         [HttpPost]
-        [Route("api/statement/uploadStatement")]
-        public async Task<IActionResult> UploadStatement(List<IFormFile> files)
+        [Route("api/statement/processCsv")]
+        public async Task<IActionResult> UploadAndProcessCsv(List<IFormFile> files)
         {
             if (files == null || !files.Any())
             {
@@ -34,6 +34,24 @@ namespace Server.Api.Controllers
             //01 O serviço o objeto completo de dados (SpendingDataList, Dashboard, etc.)
             //02 Envelopamos o objeto de dados aqui no Controller
             var result = await _statementOrchestratorService.ExecuteOrchestrationAsync(files);
+            var envelope = ResponseEnvelope<StatementResponse>.Success(message: "Extratos processados com sucesso.", value: result);
+
+            return Ok(envelope);
+        }
+
+        [HttpPost]
+        [Route("api/statement/processXls")]
+        public async Task<IActionResult> UploadAndProcessXls(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                // Retornamos o envelope de falha em vez de apenas uma string
+                return BadRequest(ResponseEnvelope<string>.Failure("Arquivo inválido.", "FILE_EMPTY"));
+            }
+
+            //01 O serviço o objeto completo de dados (SpendingDataList, Dashboard, etc.)
+            //02 Envelopamos o objeto de dados aqui no Controller
+            var result = await _iStatementXlsService.CreateFinalExcelAsync(file);
             var envelope = ResponseEnvelope<StatementResponse>.Success(message: "Extratos processados com sucesso.", value: result);
 
             return Ok(envelope);
@@ -51,24 +69,6 @@ namespace Server.Api.Controllers
 
             await _expenseService.SaveFileAsync(file);
             return Ok(ResponseEnvelope<string>.Success("expenses.csv atualizado com sucesso no servidor"));
-        }
-
-        [HttpPost]
-        [Route("api/statement/UploadAndProcessPrimaryExcel")]
-        public async Task<IActionResult> UploadAndProcessPrimaryExcel(IFormFile file)
-        {
-            if (file == null || file.Length == 0)
-            {
-                // Retornamos o envelope de falha em vez de apenas uma string
-                return BadRequest(ResponseEnvelope<string>.Failure("Arquivo inválido.", "FILE_EMPTY"));
-            }
-
-            //01 O serviço o objeto completo de dados (SpendingDataList, Dashboard, etc.)
-            //02 Envelopamos o objeto de dados aqui no Controller
-            var result = await _iStatementXlsService.CreateFinalExcelAsync(file);
-            var envelope = ResponseEnvelope<StatementResponse>.Success(message: "Extratos processados com sucesso.", value: result);
-
-            return Ok(envelope);
         }
 
         #endregion "Upload"

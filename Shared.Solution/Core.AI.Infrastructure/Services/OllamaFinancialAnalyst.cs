@@ -1,10 +1,10 @@
 ﻿using Core.AI.Contracts.Interfaces;
 using Core.AI.Contracts.Models;
 using Core.AI.Infrastructure.Configurations;
-using Docker.DotNet.Models;
 using Docker.DotNet;
-using OllamaSharp.Models;
+using Docker.DotNet.Models;
 using OllamaSharp;
+using OllamaSharp.Models;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 

@@ -3,20 +3,20 @@ using Core.AI.Infrastructure.Services;
 using Core.Infrastructure.Middlewares;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi.Models;
 using Server.Api.Domain.Infrastructure.EncryptionLib;
-using Server.Api.Domain.Service.BankService;
 using Server.Api.Domain.Service.BankService.Interface;
+using Server.Api.Domain.Service.BankService;
 using Server.Api.Domain.Service.ExpenseService;
-using Server.Api.Domain.Service.InfrastrutureService;
 using Server.Api.Domain.Service.InfrastrutureService.Interface;
+using Server.Api.Domain.Service.InfrastrutureService;
 using Server.Api.Domain.Service.ProcessStatementService.Interface;
-using Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract;
 using Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract.Interface;
+using Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract;
 using Server.Api.Domain.Service.SharedService.Interface;
 using Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
 using Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
+using Server.Domain.Service.StatmentOrchestration.OrchestrationContract;
 using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -62,6 +62,16 @@ builder.Services.AddScoped<IFinancialIntelligenceService, FinancialIntelligenceS
 
 builder.Services.AddScoped<IExpenseService>(sp => new ExpenseService(appRootPath));
 
+builder.Services.AddScoped<IStatementService, StatementService>();
+builder.Services.AddScoped<IStatementMapperService, StatementMapperService>();
+builder.Services.AddScoped<IStatementOrchestratorService, StatementOrchestratorService>();
+
+#endregion 02. Injeção de Dependência e AutoMapper
+
+#region 03. Injeção de dependencia com Factory
+
+// Registro base: essencial para que o IntelligenceService e o XlsService funcionem
+builder.Services.AddScoped<IFinancialDashboardService, FinancialDashboarService>();
 
 // Registro do Serviço de Excel utilizando uma "Factory" (Fábrica) customizada.
 // Usamos este formato porque o StatementXlsService possui um construtor misto:
@@ -74,13 +84,9 @@ builder.Services.AddScoped<IStatementXlsService>(sp =>
     return new StatementXlsService(appRootPath, dashboardService);
 });
 
-builder.Services.AddScoped<IStatementService, StatementService>();
-builder.Services.AddScoped<IStatementMapperService, StatementMapperService>();
-builder.Services.AddScoped<IStatementOrchestratorService, StatementOrchestratorService>();
+#endregion 03. Injeção de dependencia com Factory
 
-#endregion 02. Injeção de Dependência e AutoMapper
-
-#region Injecao de Dependência para Analista Financeiro de IA   
+#region 04. Injecao de Dependência para Analista Financeiro de IA
 
 // Adiciona o arquivo de segredos à configuração
 builder.Configuration.AddJsonFile("appsettings.Secrets.json", optional: true, reloadOnChange: true);
@@ -107,9 +113,9 @@ else
 // 2. Registramos o serviço de domínio que orquestra a inteligência
 builder.Services.AddScoped<IFinancialIntelligenceService, FinancialIntelligenceService>();
 
-#endregion
+#endregion 04. Injecao de Dependência para Analista Financeiro de IA
 
-#region 03. Configurações de Controladores e JSON
+#region 05. Configurações de Controladores e JSON
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -118,9 +124,9 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNamingPolicy = null;
     });
 
-#endregion 03. Configurações de Controladores e JSON
+#endregion 05. Configurações de Controladores e JSON
 
-#region 04. Swagger / OpenAPI Configuration
+#region 06. Swagger / OpenAPI Configuration
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -138,13 +144,13 @@ builder.Services.AddSwaggerGen(options =>
     options.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
 });
 
-#endregion 04. Swagger / OpenAPI Configuration
+#endregion 06. Swagger / OpenAPI Configuration
 
 var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-#region 05. Pipeline de Middlewares (Configuração do App)
+#region 06. Pipeline de Middlewares (Configuração do App)
 
 // Localização pt-BR
 var supportedCultures = new[] { new CultureInfo("pt-BR") };
@@ -180,6 +186,6 @@ app.MapControllers();
 app.MapGet("/", () => Results.Redirect("/swagger/index.html"))
                              .ExcludeFromDescription();
 
-#endregion 05. Pipeline de Middlewares (Configuração do App)
+#endregion 06. Pipeline de Middlewares (Configuração do App)
 
 app.Run();

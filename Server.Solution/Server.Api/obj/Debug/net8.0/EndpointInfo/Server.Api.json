@@ -85,7 +85,7 @@
         }
       }
     },
-    "/api/statement/uploadStatement": {
+    "/api/statement/processCsv": {
       "post": {
         "tags": [
           "Statement"
@@ -107,6 +107,38 @@
               },
               "encoding": {
                 "files": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/statement/processXls": {
+      "post": {
+        "tags": [
+          "Statement"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
                   "style": "form"
                 }
               }

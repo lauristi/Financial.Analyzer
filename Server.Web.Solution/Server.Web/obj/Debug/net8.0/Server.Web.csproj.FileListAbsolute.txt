@@ -31,6 +31,7 @@ D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\S
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\Server.Web\obj\Debug\net8.0\Server.Web.AssemblyInfo.cs
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\Server.Web\obj\Debug\net8.0\Server.Web.csproj.CoreCompileInputs.cache
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\Server.Web\obj\Debug\net8.0\Server.Web.MvcApplicationPartsAssemblyInfo.cache
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\Server.Web\obj\Debug\net8.0\Server.Web.sourcelink.json
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\Server.Web\obj\Debug\net8.0\rjimswa.dswa.cache.json
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\Server.Web\obj\Debug\net8.0\rjsmrazor.dswa.cache.json
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\Server.Web\obj\Debug\net8.0\rjsmcshtml.dswa.cache.json
@@ -49,4 +50,3 @@ D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\S
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\Server.Web\obj\Debug\net8.0\Server.Web.pdb
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\Server.Web\obj\Debug\net8.0\Server.Web.genruntimeconfig.cache
 D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\Server.Web\obj\Debug\net8.0\ref\Server.Web.dll
-D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Server.Web.Solution\Server.Web\obj\Debug\net8.0\Server.Web.sourcelink.json

@@ -50,7 +50,8 @@ namespace Server.Api.Domain.Service.ExpenseService
                         expenses.Add(new Expense
                         {
                             Origin = aItem[0],
-                            Owner = aItem[1]
+                            Category = aItem[1],
+                            CategoryOwner = aItem.Length > 2 ? aItem[2] : null    
                         });
                     }
                 }

@@ -12,10 +12,11 @@
 
     // Fábrica para Sucesso (com ou sem dados)
     public static ResponseEnvelope<T> Success(string message, T? value = default)
-        => new() { 
-            IsSuccess = true, 
-            Message = message, 
-            Value = value 
+        => new()
+        {
+            IsSuccess = true,
+            Message = message,
+            Value = value
         };
 
     // Fábrica para Falha

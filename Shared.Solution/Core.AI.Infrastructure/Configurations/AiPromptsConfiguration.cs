@@ -15,6 +15,7 @@
                                                                 { ""suggestedCategory"": ""Transporte"", ""confidenceLevel"": 0.8, ""reasoning"": ""Uber identificado"" }
                                                              ]
                                                              Não use markdown, não explique nada.";
+
         // Adicione ourtros prompts aqui...
         // public const string RiskAnalystPrompt = "...";
     }
