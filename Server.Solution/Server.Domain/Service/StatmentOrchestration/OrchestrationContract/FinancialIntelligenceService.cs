@@ -44,8 +44,8 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
                             subjectUpper.Contains("DEVOLVIDO");
 
             // 02. Processamento por tipo de fluxo
-            Expense expense = new Expense { Origin = null, Category = null, CategoryOwner = null };    
-            
+            Expense expense = new Expense { Origin = null, Category = null, CategoryOwner = null };
+
             if (item.IsCredit)
             {
                 // Se for crédito, decidimos se é um crédito que nos interessa ou se ignoramos ruído
@@ -71,7 +71,7 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
             // 03. Determinação do Dono baseada no seu expenses.csv
             expense = DetermineOwner(subjectUpper, expenses);
             item.Category = expense.Category;
-            item.CategoryOwner = expense.CategoryOwner; 
+            item.CategoryOwner = expense.CategoryOwner;
 
             // 04. Cálculo do Score
             item.Score = CalculateFinancialImpactScore(item.Value);

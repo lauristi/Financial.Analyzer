@@ -19,7 +19,7 @@ var configuration = builder.Configuration;
 var apiBaseAddress = configuration["ConnectionSettings:ApiBaseAddress"]
     ?? throw new InvalidOperationException("ApiBaseAddress não configurado.");
 
-var bindPort = int.Parse(configuration["ConnectionSettings:BindPort"] ?? "5023");
+var bindPort = int.Parse(configuration["ConnectionSettings:BindPort"] ?? "5021");
 
 // Configuração do servidor Kestrel
 builder.WebHost.ConfigureKestrel(options =>

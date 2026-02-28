@@ -37,7 +37,6 @@ public partial class StatementOrchestratorPage : ComponentBase
         {
             // 1. Prepara o conteúdo para o envio
             var content = await CreateMultipartContent(files, "files");
-
             var result = await FinancialService.ProcessStatementAsync<StatementResult>(content);
 
             // 3. Agora a variável 'result' existe e pode ser verificada
@@ -47,7 +46,7 @@ public partial class StatementOrchestratorPage : ComponentBase
 
                 // Conversão do conteúdo para download
                 var fileBytes = Convert.FromBase64String(result.Value.FileBase64);
-                var fileName = System.IO.Path.GetFileName(result.Value.FilePath);
+                var fileName = Path.GetFileName(result.Value.FilePath);
 
                 await FileService.DownloadFileByteAsync(fileName, fileBytes);
                 await AlertService.Show("Extrato processado com sucesso!", "alert-success");
@@ -82,6 +81,39 @@ public partial class StatementOrchestratorPage : ComponentBase
             else
             {
                 await AlertService.Show(result.Message ?? "Erro ao processar", "alert-danger");
+            }
+        }
+        catch (Exception ex)
+        {
+            await AlertService.Show($"Erro no envio: {ex.Message}", "alert-danger");
+        }
+    }
+
+    protected async Task ProcessExcelUpload(IReadOnlyList<IBrowserFile> files)
+    {
+        if (files == null || !files.Any()) return;
+
+        try
+        {
+            var content = await CreateMultipartContent(files, "file");
+            var result = await FinancialService.UploadExcelAsync<StatementResult>(content);
+
+            // 3. Agora a variável 'result' existe e pode ser verificada
+            if (result.IsSuccess && result.Value != null)
+            {
+                UpdateDashboard(result.Value);
+
+                // Conversão do conteúdo para download
+                var fileBytes = Convert.FromBase64String(result.Value.FileBase64);
+                var fileName = Path.GetFileName(result.Value.FilePath);
+
+                await FileService.DownloadFileByteAsync(fileName, fileBytes);
+                await AlertService.Show("Extrato processado com sucesso!", "alert-success");
+            }
+            else
+            {
+                // Caso o processamento retorne erros de negócio
+                await AlertService.Show(result, "alert-danger");
             }
         }
         catch (Exception ex)

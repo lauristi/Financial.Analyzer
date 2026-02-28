@@ -51,7 +51,7 @@ namespace Server.Api.Domain.Service.ExpenseService
                         {
                             Origin = aItem[0],
                             Category = aItem[1],
-                            CategoryOwner = aItem.Length > 2 ? aItem[2] : null    
+                            CategoryOwner = aItem.Length > 2 ? aItem[2] : null
                         });
                     }
                 }

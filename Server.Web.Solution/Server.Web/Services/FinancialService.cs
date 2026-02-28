@@ -14,7 +14,15 @@ public class FinancialService : BaseHttpClient, IFinancialService
     {
         // Agora utilizamos a rota consolidada e a chamada única.
         // O retorno do PostAsync já contém o JSON do StatementResponse.
-        var response = await _http.PostAsync("api/statement/uploadStatement", content);
+        var response = await _http.PostAsync("api/statement/processCsv", content);
+
+        return await HandleResponse<T>(response);
+    }
+
+    public async Task<ResponseEnvelope<T>> UploadExcelAsync<T>(MultipartFormDataContent content)
+    {
+        // Atualizado para a nova rota semântica, se o backend também mudou para api/statement
+        var response = await _http.PostAsync("api/statement/processXls", content);
 
         return await HandleResponse<T>(response);
     }

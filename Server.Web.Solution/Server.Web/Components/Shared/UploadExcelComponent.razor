@@ -1,0 +1,13 @@
+﻿<div class="d-flex flex-column gap-2">
+    <div class="input-group">
+        <InputFile accept=".xls,.xlsx"
+                   OnChange="HandleFileSelected"
+                   class="form-control form-control-sm" />
+    </div>
+
+    <button class="btn btn-dark w-100 shadow-sm"
+            @onclick="Upload"
+            disabled="@(files == null || files.Count == 0)">
+        <i class="bi bi-file-earmark-excel me-2 text-success"></i> Enviar Pré-Planilha
+    </button>
+</div>

@@ -192,7 +192,7 @@ namespace Server.Api.Domain.Service.InfrastrutureService
                 ExcelWorksheet outSheet = outputPackage.Workbook.Worksheets.Add("Resumo de Gastos");
 
                 var groupedData = statementResponse.SpendingDataList
-                                                   .OrderByDescending(x => x.Category)
+                                                   .OrderBy(x => x.Category)
                                                    .ThenBy(x => x.Date)
                                                    .GroupBy(x => x.Category);
 
@@ -293,7 +293,6 @@ namespace Server.Api.Domain.Service.InfrastrutureService
         {
             //                  01  02      03   04  05  06  07
             string[] sumary = { "", "", "TOTAL", "", "", "", "" };
-           
 
             for (int col = 0; col < sumary.Length; col++)
             {

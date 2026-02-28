@@ -24,7 +24,7 @@ namespace Server.Api.Controllers
 
         [HttpPost]
         [Route("api/statement/processCsv")]
-        public async Task<IActionResult> UploadAndProcessCsv(List<IFormFile> files)
+        public async Task<IActionResult> ProcessCsv(List<IFormFile> files)
         {
             if (files == null || !files.Any())
             {
@@ -41,7 +41,7 @@ namespace Server.Api.Controllers
 
         [HttpPost]
         [Route("api/statement/processXls")]
-        public async Task<IActionResult> UploadAndProcessXls(IFormFile file)
+        public async Task<IActionResult> ProcessXls(IFormFile file)
         {
             if (file == null || file.Length == 0)
             {

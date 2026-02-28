@@ -42,11 +42,24 @@
                     @* Coluna de Uploads *@
                     <div class="col-lg-4 col-md-5">
                         <div class="d-flex flex-column gap-3">
+
                             <div class="card shadow-sm border-0">
                                 <div class="card-header bg-primary text-white py-1 small fw-bold text-uppercase">Importação de Extratos</div>
                                 <div class="card-body p-3">
                                     <div class="upload-container-fluid">
                                         <UploadStatementComponent OnUpload="ProcessStatementUpload" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card shadow-sm border-0">
+                                @* Alterado para bg-dark e corrigido o texto *@
+                                <div class="card-header bg-dark text-white py-1 small fw-bold text-uppercase">
+                                    Processamento da Pré-Planilha
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="upload-container-fluid">
+                                        <UploadExcelComponent OnUpload="ProcessExcelUpload" />
                                     </div>
                                 </div>
                             </div>

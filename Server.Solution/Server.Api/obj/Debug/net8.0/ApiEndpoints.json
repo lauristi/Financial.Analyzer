@@ -57,7 +57,7 @@
   },
   {
     "ContainingType": "Server.Api.Controllers.StatementController",
-    "Method": "UploadAndProcessCsv",
+    "Method": "ProcessCsv",
     "RelativePath": "api/statement/processCsv",
     "HttpMethod": "POST",
     "IsController": true,
@@ -73,7 +73,7 @@
   },
   {
     "ContainingType": "Server.Api.Controllers.StatementController",
-    "Method": "UploadAndProcessXls",
+    "Method": "ProcessXls",
     "RelativePath": "api/statement/processXls",
     "HttpMethod": "POST",
     "IsController": true,
