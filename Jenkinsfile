@@ -21,7 +21,7 @@ pipeline {
             steps {
                 script {
                     // 1. Build da imagem: O ponto (.) indica que o contexto � a raiz
-                    sh "docker build -t ${API_NAME}:latest -f Dockerfile ."
+                    sh "docker build --no-cache -t ${API_NAME}:latest -f Dockerfile ."
                     
                     // 2. Parada e remo��o segura do container anterior
                     // O '|| true' evita que o Jenkins falhe se o container n�o existir
