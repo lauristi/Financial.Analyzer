@@ -18,6 +18,8 @@
 
         void ShowLoading(string message);
 
+        void NotifyChanged();
+
         void Hide();
     }
 }

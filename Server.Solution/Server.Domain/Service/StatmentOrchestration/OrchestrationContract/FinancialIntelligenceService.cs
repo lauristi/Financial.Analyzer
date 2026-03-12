@@ -84,9 +84,9 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
         }
 
         //06 Com tudo processado , geramos os totais para o dashboard
+        statementResponse.SpendingDataList = extractedTransactions;
         _financialDashboardService.GerateDashboardTotals(statementResponse);
 
-        statementResponse.SpendingDataList = extractedTransactions;
         return statementResponse;
     }
 

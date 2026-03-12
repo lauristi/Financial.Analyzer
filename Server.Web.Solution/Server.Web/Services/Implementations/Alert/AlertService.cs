@@ -30,7 +30,7 @@ public class AlertService : IAlertService
         IsVisible = true;
         NotifyStateChanged();
 
-        await Task.Delay(4000);
+        await Task.Delay(1000);
 
         IsVisible = false;
         NotifyStateChanged();
@@ -44,10 +44,25 @@ public class AlertService : IAlertService
         IsVisible = true;
         NotifyStateChanged();
 
-        await Task.Delay(14000);
+        await Task.Delay(1000);
 
         IsVisible = false;
         NotifyStateChanged();
+    }
+
+    public async void NotifyChanged()
+    {
+
+        Message = "Atualizando...";
+        CssClass = "alert-info";
+        IsVisible = true;
+        NotifyStateChanged();
+
+        await Task.Delay(1000);
+
+        IsVisible = false;
+        NotifyStateChanged();
+
     }
 
     #region Mensagem de processamento

@@ -1,6 +1,7 @@
 ﻿using Server.Api.Domain.Service.ProcessStatementService.Enum;
 using Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel;
 using Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
+using System;
 
 namespace Server.Domain.Service.StatmentOrchestration.OrchestrationContract
 {
@@ -10,28 +11,30 @@ namespace Server.Domain.Service.StatmentOrchestration.OrchestrationContract
         {
             foreach (var item in processedData.SpendingDataList)
             {
-                if (item.FinancialType == FinancialType.Ignore) return;
+                //if (item.FinancialType == FinancialType.Ignore) return;
+
+                decimal value = Math.Abs(item.Value);
 
                 if (item.IsCredit)
                 {
-                    processedData.Dashboard.TotalCredit += item.Value;
+                    processedData.Dashboard.TotalCredit += value;
                 }
                 else
                 {
-                    processedData.Dashboard.TotalDebit += item.Value;
+                    processedData.Dashboard.TotalDebit += value;
 
                     switch (item.FinancialType)
                     {
                         case FinancialType.SupermarketDebit:
-                            processedData.Dashboard.Supermarket += item.Value;
+                            processedData.Dashboard.Supermarket += value;
                             break;
 
                         case FinancialType.PharmacyDebit:
-                            processedData.Dashboard.Pharmacy += item.Value;
+                            processedData.Dashboard.Pharmacy += value;
                             break;
 
                         case FinancialType.ExtraDebit:
-                            processedData.Dashboard.Extra += item.Value;
+                            processedData.Dashboard.Extra += value;
                             break;
                     }
                 }

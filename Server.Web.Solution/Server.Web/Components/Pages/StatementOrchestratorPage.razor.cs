@@ -43,6 +43,7 @@ public partial class StatementOrchestratorPage : ComponentBase
             if (result.IsSuccess && result.Value != null)
             {
                 UpdateDashboard(result.Value);
+                AlertService.NotifyChanged();
 
                 // Conversão do conteúdo para download
                 var fileBytes = Convert.FromBase64String(result.Value.FileBase64);
