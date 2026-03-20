@@ -1,0 +1,13 @@
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\bin\Debug\net8.0\Core.Infrastructure.deps.json
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\bin\Debug\net8.0\Core.Infrastructure.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\bin\Debug\net8.0\Core.Infrastructure.pdb
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\obj\Debug\net8.0\Core.Infrastructure.csproj.AssemblyReference.cache
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\obj\Debug\net8.0\Core.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\obj\Debug\net8.0\Core.Infrastructure.AssemblyInfoInputs.cache
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\obj\Debug\net8.0\Core.Infrastructure.AssemblyInfo.cs
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\obj\Debug\net8.0\Core.Infrastructure.csproj.CoreCompileInputs.cache
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\obj\Debug\net8.0\Core.Infrastructure.sourcelink.json
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\obj\Debug\net8.0\Core.Infrastructure.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\obj\Debug\net8.0\refint\Core.Infrastructure.dll
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\obj\Debug\net8.0\Core.Infrastructure.pdb
+D:\Projeto\MyRepository\lauristi\Lenovo\Financial.Analyzer\Shared.Solution\Core.Infrastructure\obj\Debug\net8.0\ref\Core.Infrastructure.dll
