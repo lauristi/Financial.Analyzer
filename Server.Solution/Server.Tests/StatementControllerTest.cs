@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Core.HttpHandleResults.Responses;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Server.Api.Controllers;
@@ -37,7 +38,7 @@ namespace Server.Api.Tests
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            var envelope = Assert.IsType<ResponseEnvelope<StatementResponse>>(badRequestResult.Value);
+            var envelope = Assert.IsType<GenericResponseEnvelope<StatementResponse>>(badRequestResult.Value);
             Assert.False(envelope.IsSuccess);
             Assert.Equal("NO_FILES", envelope.ErrorCode);
         }
@@ -65,7 +66,7 @@ namespace Server.Api.Tests
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
-            var envelope = Assert.IsType<ResponseEnvelope<string>>(okResult.Value);
+            var envelope = Assert.IsType<GenericResponseEnvelope<string>>(okResult.Value);
             Assert.True(envelope.IsSuccess);
             _expenseServiceMock.Verify(s => s.SaveFileAsync(It.IsAny<IFormFile>()), Times.Once);
         }
@@ -87,7 +88,7 @@ namespace Server.Api.Tests
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
-            var envelope = Assert.IsType<ResponseEnvelope<StatementResponse>>(okResult.Value);
+            var envelope = Assert.IsType<GenericResponseEnvelope<StatementResponse>>(okResult.Value);
             Assert.True(envelope.IsSuccess);
             Assert.Equal("Extratos processados com sucesso.", envelope.Message);
         }

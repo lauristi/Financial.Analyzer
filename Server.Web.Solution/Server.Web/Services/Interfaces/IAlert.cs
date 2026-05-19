@@ -1,4 +1,6 @@
-﻿namespace Server.Web.Services.Interfaces
+﻿using Core.HttpHandleResults.Responses;
+
+namespace Server.Web.Services.Interfaces
 {
     public interface IAlertService
     {
@@ -12,7 +14,7 @@
         event Action? OnChange;
 
         // Contrato para a ação de exibir o alerta
-        Task Show<T>(ResponseEnvelope<T> result, string css);
+        Task Show<T>(GenericResponseEnvelope<T> result, string css);
 
         Task Show(string message, string css);
 

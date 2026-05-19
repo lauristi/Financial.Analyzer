@@ -870,7 +870,7 @@
           "bin/placeholder/Core.AI.Infrastructure.dll": {}
         }
       },
-      "Core.Infrastructure/1.0.0": {
+      "Core.HttpHandleResults/1.0.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v8.0",
         "dependencies": {
@@ -878,10 +878,10 @@
           "Microsoft.Extensions.Hosting.Abstractions": "10.0.3"
         },
         "compile": {
-          "bin/placeholder/Core.Infrastructure.dll": {}
+          "bin/placeholder/Core.HttpHandleResults.dll": {}
         },
         "runtime": {
-          "bin/placeholder/Core.Infrastructure.dll": {}
+          "bin/placeholder/Core.HttpHandleResults.dll": {}
         }
       },
       "Server.Domain/1.0.0": {
@@ -2597,10 +2597,10 @@
       "path": "../../Shared.Solution/Core.AI.Infrastructure/Core.AI.Infrastructure.csproj",
       "msbuildProject": "../../Shared.Solution/Core.AI.Infrastructure/Core.AI.Infrastructure.csproj"
     },
-    "Core.Infrastructure/1.0.0": {
+    "Core.HttpHandleResults/1.0.0": {
       "type": "project",
-      "path": "../../Shared.Solution/Core.Infrastructure/Core.Infrastructure.csproj",
-      "msbuildProject": "../../Shared.Solution/Core.Infrastructure/Core.Infrastructure.csproj"
+      "path": "../../Shared.Solution/Core.HttpHandleResult/Core.HttpHandleResults.csproj",
+      "msbuildProject": "../../Shared.Solution/Core.HttpHandleResult/Core.HttpHandleResults.csproj"
     },
     "Server.Domain/1.0.0": {
       "type": "project",
@@ -2612,7 +2612,7 @@
     "net8.0": [
       "Core.AI.Contracts >= 1.0.0",
       "Core.AI.Infrastructure >= 1.0.0",
-      "Core.Infrastructure >= 1.0.0",
+      "Core.HttpHandleResults >= 1.0.0",
       "Microsoft.OpenApi >= 1.6.14",
       "Server.Domain >= 1.0.0",
       "Swashbuckle.AspNetCore >= 6.6.2",
@@ -2660,8 +2660,8 @@
             "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.AI.Infrastructure\\Core.AI.Infrastructure.csproj": {
               "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.AI.Infrastructure\\Core.AI.Infrastructure.csproj"
             },
-            "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.Infrastructure\\Core.Infrastructure.csproj": {
-              "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.Infrastructure\\Core.Infrastructure.csproj"
+            "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResult\\Core.HttpHandleResults.csproj": {
+              "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResult\\Core.HttpHandleResults.csproj"
             }
           }
         }
@@ -2714,7 +2714,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.312/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.314/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

@@ -1,11 +1,13 @@
-﻿namespace Server.Web.Services.Interfaces
+﻿using Core.HttpHandleResults.Responses;
+
+namespace Server.Web.Services.Interfaces
 {
     public interface IFinancialService
     {
-        Task<ResponseEnvelope<T>> ProcessStatementAsync<T>(MultipartFormDataContent content);
+        Task<GenericResponseEnvelope<T>> ProcessStatementAsync<T>(MultipartFormDataContent content);
 
-        Task<ResponseEnvelope<T>> UploadExpensesAsync<T>(MultipartFormDataContent content);
+        Task<GenericResponseEnvelope<T>> UploadExpensesAsync<T>(MultipartFormDataContent content);
 
-        Task<ResponseEnvelope<T>> UploadExcelAsync<T>(MultipartFormDataContent content);
+        Task<GenericResponseEnvelope<T>> UploadExcelAsync<T>(MultipartFormDataContent content);
     }
 }

@@ -20,6 +20,7 @@ namespace Server.Api.Controllers
             _logger = logger;
         }
 
+                
         [HttpPost]
         [Route("api/clipboard/post")]
         public Task<IActionResult> PostClipBoard([FromBody] Transmition transmition)

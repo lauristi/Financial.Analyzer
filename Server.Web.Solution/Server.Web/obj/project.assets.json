@@ -655,7 +655,7 @@
           }
         }
       },
-      "Core.Infrastructure/1.0.0": {
+      "Core.HttpHandleResults/1.0.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v8.0",
         "dependencies": {
@@ -663,10 +663,10 @@
           "Microsoft.Extensions.Hosting.Abstractions": "10.0.3"
         },
         "compile": {
-          "bin/placeholder/Core.Infrastructure.dll": {}
+          "bin/placeholder/Core.HttpHandleResults.dll": {}
         },
         "runtime": {
-          "bin/placeholder/Core.Infrastructure.dll": {}
+          "bin/placeholder/Core.HttpHandleResults.dll": {}
         }
       }
     }
@@ -1426,16 +1426,16 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "Core.Infrastructure/1.0.0": {
+    "Core.HttpHandleResults/1.0.0": {
       "type": "project",
-      "path": "../../Shared.Solution/Core.Infrastructure/Core.Infrastructure.csproj",
-      "msbuildProject": "../../Shared.Solution/Core.Infrastructure/Core.Infrastructure.csproj"
+      "path": "../../Shared.Solution/Core.HttpHandleResult/Core.HttpHandleResults.csproj",
+      "msbuildProject": "../../Shared.Solution/Core.HttpHandleResult/Core.HttpHandleResults.csproj"
     }
   },
   "projectFileDependencyGroups": {
     "net8.0": [
       "Blazored.LocalStorage >= 4.5.0",
-      "Core.Infrastructure >= 1.0.0",
+      "Core.HttpHandleResults >= 1.0.0",
       "NLog >= 6.1.0",
       "NLog.Extensions.Logging >= 6.1.1",
       "bootstrap >= 5.3.8"
@@ -1473,8 +1473,8 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.Infrastructure\\Core.Infrastructure.csproj": {
-              "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.Infrastructure\\Core.Infrastructure.csproj"
+            "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResult\\Core.HttpHandleResults.csproj": {
+              "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResult\\Core.HttpHandleResults.csproj"
             }
           }
         }
@@ -1531,7 +1531,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.312/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.314/PortableRuntimeIdentifierGraph.json"
       }
     }
   }
