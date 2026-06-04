@@ -11,7 +11,7 @@ COPY ["Shared.Solution/Shared.Solution.sln", "Shared.Solution/"]
 COPY ["Server.Solution/Server.Api/Server.Api.csproj", "Server.Solution/Server.Api/"]
 COPY ["Server.Solution/Server.Domain/Server.Domain.csproj", "Server.Solution/Server.Domain/"]
 COPY ["Server.Solution/Server.Tests/Server.Tests.csproj", "Server.Solution/Server.Tests/"]
-COPY ["Shared.Solution/Core.Infrastructure/Core.Infrastructure.csproj", "Shared.Solution/Core.Infrastructure/"]
+COPY ["Shared.Solution/Core.HttpHandleResults/Core.HttpHandleResults.csproj", "Shared.Solution/Core.HttpHandleResults/"]
 COPY ["Shared.Solution/Core.AI.Contracts/Core.AI.Contracts.csproj", "Shared.Solution/Core.AI.Contracts/"]
 COPY ["Shared.Solution/Core.AI.Infrastructure/Core.AI.Infrastructure.csproj", "Shared.Solution/Core.AI.Infrastructure/"]
 
