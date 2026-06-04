@@ -1428,8 +1428,8 @@
     },
     "Core.HttpHandleResults/1.0.0": {
       "type": "project",
-      "path": "../../Shared.Solution/Core.HttpHandleResult/Core.HttpHandleResults.csproj",
-      "msbuildProject": "../../Shared.Solution/Core.HttpHandleResult/Core.HttpHandleResults.csproj"
+      "path": "../../Shared.Solution/Core.HttpHandleResults/Core.HttpHandleResults.csproj",
+      "msbuildProject": "../../Shared.Solution/Core.HttpHandleResults/Core.HttpHandleResults.csproj"
     }
   },
   "projectFileDependencyGroups": {
@@ -1474,8 +1474,8 @@
           "framework": "net8.0",
           "targetAlias": "net8.0",
           "projectReferences": {
-            "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResult\\Core.HttpHandleResults.csproj": {
-              "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResult\\Core.HttpHandleResults.csproj"
+            "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResults\\Core.HttpHandleResults.csproj": {
+              "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResults\\Core.HttpHandleResults.csproj"
             }
           }
         }

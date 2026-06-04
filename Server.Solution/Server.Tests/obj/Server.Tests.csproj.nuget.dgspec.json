@@ -42,8 +42,8 @@
               "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.AI.Infrastructure\\Core.AI.Infrastructure.csproj": {
                 "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.AI.Infrastructure\\Core.AI.Infrastructure.csproj"
               },
-              "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResult\\Core.HttpHandleResults.csproj": {
-                "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResult\\Core.HttpHandleResults.csproj"
+              "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResults\\Core.HttpHandleResults.csproj": {
+                "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResults\\Core.HttpHandleResults.csproj"
               }
             }
           }
@@ -332,8 +332,8 @@
             "framework": "net8.0",
             "targetAlias": "net8.0",
             "projectReferences": {
-              "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResult\\Core.HttpHandleResults.csproj": {
-                "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResult\\Core.HttpHandleResults.csproj"
+              "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResults\\Core.HttpHandleResults.csproj": {
+                "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResults\\Core.HttpHandleResults.csproj"
               }
             }
           }
@@ -543,14 +543,14 @@
         }
       }
     },
-    "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResult\\Core.HttpHandleResults.csproj": {
+    "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResults\\Core.HttpHandleResults.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResult\\Core.HttpHandleResults.csproj",
+        "projectUniqueName": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResults\\Core.HttpHandleResults.csproj",
         "projectName": "Core.HttpHandleResults",
-        "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResult\\Core.HttpHandleResults.csproj",
+        "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResults\\Core.HttpHandleResults.csproj",
         "packagesPath": "C:\\Users\\sysdba\\.nuget\\packages\\",
-        "outputPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResult\\obj\\",
+        "outputPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.HttpHandleResults\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

@@ -4272,8 +4272,8 @@
     },
     "Core.HttpHandleResults/1.0.0": {
       "type": "project",
-      "path": "../../Shared.Solution/Core.HttpHandleResult/Core.HttpHandleResults.csproj",
-      "msbuildProject": "../../Shared.Solution/Core.HttpHandleResult/Core.HttpHandleResults.csproj"
+      "path": "../../Shared.Solution/Core.HttpHandleResults/Core.HttpHandleResults.csproj",
+      "msbuildProject": "../../Shared.Solution/Core.HttpHandleResults/Core.HttpHandleResults.csproj"
     },
     "Server.Api/1.0.0": {
       "type": "project",
