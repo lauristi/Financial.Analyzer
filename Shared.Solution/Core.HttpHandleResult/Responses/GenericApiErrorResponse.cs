@@ -1,10 +1,10 @@
-﻿namespace Core.Infrastructure.Responses
+﻿namespace Core.HttpHandleResults.Responses
 {
     /// <summary>
     /// Modelo padrão para respostas de erro da API.
     /// Este é o JSON que o Front-end receberá em caso de falha.
     /// </summary>
-    public class ApiErrorResponse
+    public class GenericApiErrorResponse
     {
         public bool Success { get; } = false; // Sempre falso neste objeto
         public string Title { get; set; }     // Ex: "Erro de Regra de Negócio" ou "Erro Interno"

@@ -1,4 +1,4 @@
-﻿using Core.Infrastructure.Responses;
+﻿using Core.HttpHandleResults.Responses;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -59,7 +59,7 @@ namespace Core.Infrastructure.Middlewares
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
             // Criamos o nosso envelope de erro (Contrato de Interface).
-            var response = new ApiErrorResponse
+            var response = new GenericApiErrorResponse
             {
                 Title = "Erro Interno de Servidor",
                 Message = "Ocorreu um erro inesperado em nosso sistema. Por favor, tente novamente mais tarde.",

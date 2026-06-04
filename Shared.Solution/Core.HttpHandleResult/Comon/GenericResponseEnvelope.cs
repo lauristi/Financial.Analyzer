@@ -1,4 +1,5 @@
-﻿public class ResponseEnvelope<T>
+﻿namespace Core.HttpHandleResults.Responses { 
+    public class GenericResponseEnvelope<T>
 {
     public bool IsSuccess { get; set; }
     public string Message { get; set; } // Mensagem universal (Sucesso ou Erro)
@@ -7,11 +8,11 @@
     public IEnumerable<string>? Errors { get; set; }
 
     // Construtor vazio para serialização
-    public ResponseEnvelope()
+    public GenericResponseEnvelope()
     { }
 
     // Fábrica para Sucesso (com ou sem dados)
-    public static ResponseEnvelope<T> Success(string message, T? value = default)
+    public static GenericResponseEnvelope<T> Success(string message, T? value = default)
         => new()
         {
             IsSuccess = true,
@@ -20,7 +21,7 @@
         };
 
     // Fábrica para Falha
-    public static ResponseEnvelope<T> Failure(string message, string? errorCode = null, IEnumerable<string>? errors = null)
+    public static GenericResponseEnvelope<T> Failure(string message, string? errorCode = null, IEnumerable<string>? errors = null)
         => new()
         {
             IsSuccess = false,
@@ -28,4 +29,5 @@
             ErrorCode = errorCode,
             Errors = errors
         };
+}
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Core.HttpHandleResults.Responses;
+using Microsoft.AspNetCore.Mvc;
 using Server.Api.Domain.Service.InfrastrutureService.Interface;
 using Server.Api.Domain.Service.ProcessStatementService.Interface;
 using Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel;
@@ -28,13 +29,13 @@ namespace Server.Api.Controllers
         {
             if (files == null || !files.Any())
             {
-                return BadRequest(ResponseEnvelope<StatementResponse>.Failure("Nenhum arquivo enviado.", "NO_FILES"));
+                return BadRequest(GenericResponseEnvelope<StatementResponse>.Failure("Nenhum arquivo enviado.", "NO_FILES"));
             }
 
             //01 O serviço o objeto completo de dados (SpendingDataList, Dashboard, etc.)
             //02 Envelopamos o objeto de dados aqui no Controller
             var result = await _statementOrchestratorService.ExecuteOrchestrationAsync(files);
-            var envelope = ResponseEnvelope<StatementResponse>.Success(message: "Extratos processados com sucesso.", value: result);
+            var envelope = GenericResponseEnvelope<StatementResponse>.Success(message: "Extratos processados com sucesso.", value: result);
 
             return Ok(envelope);
         }
@@ -46,13 +47,13 @@ namespace Server.Api.Controllers
             if (file == null || file.Length == 0)
             {
                 // Retornamos o envelope de falha em vez de apenas uma string
-                return BadRequest(ResponseEnvelope<string>.Failure("Arquivo inválido.", "FILE_EMPTY"));
+                return BadRequest(GenericResponseEnvelope<string>.Failure("Arquivo inválido.", "FILE_EMPTY"));
             }
 
             //01 O serviço o objeto completo de dados (SpendingDataList, Dashboard, etc.)
             //02 Envelopamos o objeto de dados aqui no Controller
             var result = await _iStatementXlsService.CreateFinalExcelAsync(file);
-            var envelope = ResponseEnvelope<StatementResponse>.Success(message: "Extratos processados com sucesso.", value: result);
+            var envelope = GenericResponseEnvelope<StatementResponse>.Success(message: "Extratos processados com sucesso.", value: result);
 
             return Ok(envelope);
         }
@@ -64,11 +65,11 @@ namespace Server.Api.Controllers
             if (file == null || file.Length == 0)
             {
                 // Retornamos o envelope de falha em vez de apenas uma string
-                return BadRequest(ResponseEnvelope<string>.Failure("Arquivo inválido.", "FILE_EMPTY"));
+                return BadRequest(GenericResponseEnvelope<string>.Failure("Arquivo inválido.", "FILE_EMPTY"));
             }
 
             await _expenseService.SaveFileAsync(file);
-            return Ok(ResponseEnvelope<string>.Success("expenses.csv atualizado com sucesso no servidor"));
+            return Ok(GenericResponseEnvelope<string>.Success("expenses.csv atualizado com sucesso no servidor"));
         }
 
         #endregion "Upload"

@@ -1,4 +1,5 @@
-﻿using Server.Web.Services.Interfaces;
+﻿using Core.HttpHandleResults.Responses;
+using Server.Web.Services.Interfaces;
 
 public class AlertService : IAlertService
 {
@@ -10,7 +11,7 @@ public class AlertService : IAlertService
 
     // Ajustado para receber o objeto OperationResult diretamente
     // Alteramos para aceitar qualquer tipo de OperationResult<T>
-    public async Task Show<T>(ResponseEnvelope<T> result, string css)
+    public async Task Show<T>(GenericResponseEnvelope<T> result, string css)
     {
         if (result.Errors != null && result.Errors.Any())
         {

@@ -1,4 +1,6 @@
-﻿namespace Server.Web.Infrastructure
+﻿using Core.HttpHandleResults.Responses;
+
+namespace Server.Web.Infrastructure
 {
     public abstract class BaseHttpClient
     {
@@ -10,9 +12,9 @@
         }
 
         /// <summary>
-        /// Processa a resposta da API esperando sempre um ResponseEnvelope padronizado.
+        /// Processa a resposta da API esperando sempre um GenericResponseEnvelope padronizado.
         /// </summary>
-        protected async Task<ResponseEnvelope<T>> HandleResponse<T>(HttpResponseMessage response)
+        protected async Task<GenericResponseEnvelope<T>> HandleResponse<T>(HttpResponseMessage response)
         {
             try
             {
@@ -20,19 +22,19 @@
                 // O T aqui representa o tipo do campo 'Value' dentro do envelope.
                 if (response.IsSuccessStatusCode)
                 {
-                    var envelope = await response.Content.ReadFromJsonAsync<ResponseEnvelope<T>>();
-                    return envelope ?? ResponseEnvelope<T>.Failure("O servidor retornou um corpo vazio.");
+                    var envelope = await response.Content.ReadFromJsonAsync<GenericResponseEnvelope<T>>();
+                    return envelope ?? GenericResponseEnvelope<T>.Failure("O servidor retornou um corpo vazio.");
                 }
 
                 // Se houver erro de negócio ou exceção tratada (ex: 400, 404, 500),
-                // o Back-end também enviará um ResponseEnvelope<T> preenchido com as falhas.
-                var errorEnvelope = await response.Content.ReadFromJsonAsync<ResponseEnvelope<T>>();
-                return errorEnvelope ?? ResponseEnvelope<T>.Failure("Erro desconhecido ao processar a requisição.");
+                // o Back-end também enviará um GenericResponseEnvelope<T> preenchido com as falhas.
+                var errorEnvelope = await response.Content.ReadFromJsonAsync<GenericResponseEnvelope<T>>();
+                return errorEnvelope ?? GenericResponseEnvelope<T>.Failure("Erro desconhecido ao processar a requisição.");
             }
             catch (Exception ex)
             {
                 // Fallback para falhas críticas de infraestrutura (ex: JSON malformado ou timeout)
-                return ResponseEnvelope<T>.Failure(
+                return GenericResponseEnvelope<T>.Failure(
                     $"Erro de comunicação: {ex.Message}",
                     "HTTP_COMMUNICATION_ERROR"
                 );
