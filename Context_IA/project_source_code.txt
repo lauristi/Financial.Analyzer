@@ -1,0 +1,3654 @@
+﻿==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Api\Program.cs
+USINGS: Core.AI.Contracts.Interfaces, Core.AI.Infrastructure.Services, Core.Infrastructure.Middlewares, Microsoft.AspNetCore.HttpOverrides, Microsoft.AspNetCore.Localization, Microsoft.OpenApi.Models, Server.Api.Domain.Infrastructure.EncryptionLib, Server.Api.Domain.Service.BankService, Server.Api.Domain.Service.BankService.Interface, Server.Api.Domain.Service.ExpenseService, Server.Api.Domain.Service.InfrastrutureService, Server.Api.Domain.Service.InfrastrutureService.Interface, Server.Api.Domain.Service.ProcessStatementService.Interface, Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract, Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract.Interface, Server.Api.Domain.Service.SharedService.Interface, Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface, Server.Domain.Service.StatmentOrchestration.OrchestrationContract, Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface, System.Globalization
+==================================================
+var builder = WebApplication.CreateBuilder(args);
+// Registro de provedor para suporte a codificação Latin1 (comum em arquivos bancários)
+System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+#region 01. Configurações de Infraestrutura e Host (Kestrel/Logs)
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+var configuration = builder.Configuration;
+var appRootPath = builder.Environment.ContentRootPath;
+var apiBaseAddress = configuration["ConnectionSettings:ApiBaseAddress"]
+    ?? throw new InvalidOperationException("ConnectionSettings:ApiBaseAddress não configurado");
+var bindPort = int.Parse(configuration["ConnectionSettings:BindPort"] ?? "5020");
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(bindPort);
+});
+if (!builder.Environment.IsDevelopment())
+{
+    builder.WebHost.UseStaticWebAssets();
+}
+#endregion 01. Configurações de Infraestrutura e Host (Kestrel/Logs)
+#region 02. Injeção de Dependência e AutoMapper
+builder.Services.AddSingleton<ICrypto, Crypto>();
+builder.Services.AddSingleton<IEncryptionService, EncryptionService>();
+// --- Serviços de Domínio ---
+builder.Services.AddScoped<IDataSanitizerService, DataSanitizerService>();
+builder.Services.AddScoped<IXlsService, XlsService>();
+builder.Services.AddScoped<IBankService, BankService>();
+builder.Services.AddScoped<IFinancialIntelligenceService, FinancialIntelligenceService>();
+builder.Services.AddScoped<IExpenseService>(sp => new ExpenseService(appRootPath));
+builder.Services.AddScoped<IStatementService, StatementService>();
+builder.Services.AddScoped<IStatementMapperService, StatementMapperService>();
+builder.Services.AddScoped<IStatementOrchestratorService, StatementOrchestratorService>();
+#endregion 02. Injeção de Dependência e AutoMapper
+#region 03. Injeção de dependencia com Factory
+// Registro base: essencial para que o IntelligenceService e o XlsService funcionem
+builder.Services.AddScoped<IFinancialDashboardService, FinancialDashboarService>();
+// Registro do Serviço de Excel utilizando uma "Factory" (Fábrica) customizada.
+// Usamos este formato porque o StatementXlsService possui um construtor misto:
+builder.Services.AddScoped<IStatementXlsService>(sp =>
+{
+    //01  Resolve o serviço de Dashboard que já está no container
+    //02  Retorna a instância da classe passando o parâmetro manual e o serviço resolvido
+    var dashboardService = sp.GetRequiredService<IFinancialDashboardService>();
+    return new StatementXlsService(appRootPath, dashboardService);
+});
+#endregion 03. Injeção de dependencia com Factory
+#region 04. Injecao de Dependência para Analista Financeiro de IA
+// Adiciona o arquivo de segredos à configuração
+builder.Configuration.AddJsonFile("appsettings.Secrets.json", optional: true, reloadOnChange: true);
+// 1. Recuperamos as configurações do appsettings.json
+var aiProvider = builder.Configuration["AiSettings:Provider"]; // "Ollama" ou "Gemini"
+if (aiProvider == "Gemini")
+{
+    var apiKey = builder.Configuration["AiSettings:GeminiApiKey"];
+    builder.Services.AddScoped<IFinancialAiAnalyst>(sp =>
+        new GeminiFinancialAnalyst(apiKey));
+}
+else
+{
+    // Configuração padrão para o Ollama Local
+    var dockerUri = new Uri(builder.Configuration["AiSettings:DockerUri"] ?? "npipe://./pipe/docker_engine");
+    var ollamaUri = new Uri(builder.Configuration["AiSettings:OllamaUri"] ?? "http://localhost:11434");
+    builder.Services.AddScoped<IFinancialAiAnalyst>(sp =>
+        new OllamaFinancialAnalyst(dockerUri, ollamaUri));
+}
+// 2. Registramos o serviço de domínio que orquestra a inteligência
+builder.Services.AddScoped<IFinancialIntelligenceService, FinancialIntelligenceService>();
+#endregion 04. Injecao de Dependência para Analista Financeiro de IA
+#region 05. Configurações de Controladores e JSON
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // PascalCase para compatibilidade com DTOs do Blazor
+        options.JsonSerializerOptions.PropertyNamingPolicy = null;
+    });
+#endregion 05. Configurações de Controladores e JSON
+#region 06. Swagger / OpenAPI Configuration
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    // Usamos o nome completo do tipo para evitar ambiguidades com outros pacotes
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Financial Analyzer API",
+        Version = "v1",
+        Description = "API para processamento de extratos bancários e análise financeira."
+    });
+    // Esta linha é um "truque" para garantir que o Swagger não se perca com
+    // tipos complexos ou mapeamentos que você atualizou no NuGet
+    options.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
+});
+#endregion 06. Swagger / OpenAPI Configuration
+var app = builder.Build();
+app.UseMiddleware<GlobalExceptionMiddleware>();
+#region 06. Pipeline de Middlewares (Configuração do App)
+// Localização pt-BR
+var supportedCultures = new[] { new CultureInfo("pt-BR") };
+app.UseRequestLocalization(new RequestLocalizationOptions
+{
+    DefaultRequestCulture = new RequestCulture("pt-BR"),
+    SupportedCultures = supportedCultures,
+    SupportedUICultures = supportedCultures
+});
+CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("pt-BR");
+CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo("pt-BR");
+// Pipeline de Documentação
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Financial Analyzer V1");
+    c.RoutePrefix = "swagger";
+});
+app.UseAuthorization();
+app.UseAuthentication();
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+app.MapControllers();
+// Redireciona a raiz para o Swagger (Exclude oculta da interface grafica)
+app.MapGet("/", () => Results.Redirect("/swagger/index.html"))
+                             .ExcludeFromDescription();
+#endregion 06. Pipeline de Middlewares (Configuração do App)
+app.Run();
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Api\Controllers\ClipboardController.cs
+USINGS: Microsoft.AspNetCore.Mvc, Server.Api.Domain.Model, Server.Api.Domain.Service.InfrastrutureService.Interface
+==================================================
+namespace Server.Api.Controllers
+{
+    public class ClipboardController : Controller
+    {
+        //Injetando ICrypto (Because injeção é legal)
+        private readonly IEncryptionService _encryptionService;
+        private readonly ILogger<ClipboardController> _logger;
+        private static Dictionary<string, string> clipboardData = new Dictionary<string, string>();
+        public ClipboardController(IEncryptionService encryptionService,
+                                   ILogger<ClipboardController> logger)
+        {
+            _encryptionService = encryptionService;
+            _logger = logger;
+        }
+        [HttpPost]
+        [Route("api/clipboard/post")]
+        public Task<IActionResult> PostClipBoard([FromBody] Transmition transmition)
+        {
+            transmition.Content = transmition.Content ?? "";
+            clipboardData["0"] = _encryptionService.Encrypt(transmition.Content);
+            //------------------------------------------------------------
+            return Task.FromResult<IActionResult>(Ok());
+        }
+        [HttpGet]
+        [Route("api/clipboard/get")]
+        public Task<IActionResult> GetClipBoard()
+        {
+            ClipboardResponse clipboardResponse = new ClipboardResponse();
+            if (clipboardData.ContainsKey("0"))
+            {
+                clipboardResponse.Clipboard = _encryptionService.Decrypt(clipboardData["0"]);
+                return Task.FromResult<IActionResult>(Ok(clipboardResponse));
+            }
+            else
+            {
+                return Task.FromResult<IActionResult>(Ok(clipboardResponse));
+            }
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Api\Controllers\ErrorSimulatorController.cs
+USINGS: Core.HttpHandleResults.Responses, Microsoft.AspNetCore.Mvc
+==================================================
+namespace Server.Api.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class ErrorSimulatorController : ControllerBase
+    {
+        /// Simula um erro catastrófico que deve ser capturado pelo Middleware (Status 500).
+        [HttpGet("exception")]
+        public IActionResult ThrowException()
+        {
+            throw new Exception("Erro fatal imprevisto no servidor!");
+        }
+        /// Simula um erro de negócio simples via OperationResult (Status 400).
+        [HttpGet("business-error")]
+        public IActionResult GetBusinessError()
+        {
+            var result = GenericResponseEnvelope<string>.Failure("Este item já foi processado.", "ERR_ALREADY_PROCESSED");
+            return BadRequest(new GenericApiErrorResponse
+            {
+                Title = "Regra de Negócio",
+                Message = result.Message,
+                ErrorCode = result.ErrorCode
+            });
+        }
+        /// Simula múltiplos erros de validação (Status 400).
+        [HttpGet("validation-errors")]
+        public IActionResult GetMultipleErrors()
+        {
+            var erros = new List<string>
+            {
+                "O campo Nome é obrigatório.",
+                "O formato do E-mail está incorreto.",
+                "A senha deve conter caracteres especiais."
+            };
+            var result = GenericResponseEnvelope<bool>.Failure("Foram encontrados erros de validação.", "VALIDATION_001", erros);
+            return BadRequest(new GenericApiErrorResponse
+            {
+                Title = "Falha na Validação",
+                Message = result.Message,
+                ErrorCode = result.ErrorCode,
+                Errors = result.Errors.ToList()
+            });
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Api\Controllers\StatementController.cs
+USINGS: Core.HttpHandleResults.Responses, Microsoft.AspNetCore.Mvc, Server.Api.Domain.Service.InfrastrutureService.Interface, Server.Api.Domain.Service.ProcessStatementService.Interface, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel
+==================================================
+namespace Server.Api.Controllers
+{
+    public class StatementController : Controller
+    {
+        private readonly IStatementOrchestratorService _statementOrchestratorService;
+        private readonly IExpenseService _expenseService;
+        private readonly IStatementXlsService _iStatementXlsService;
+        public StatementController(IStatementOrchestratorService statementOrchestratorService,
+                                   IExpenseService expenseService,
+                                    IStatementXlsService statementXlsService)
+        {
+            _expenseService = expenseService;
+            _statementOrchestratorService = statementOrchestratorService;
+            _iStatementXlsService = statementXlsService;
+        }
+        #region "Upload"
+        [HttpPost]
+        [Route("api/statement/processCsv")]
+        public async Task<IActionResult> ProcessCsv(List<IFormFile> files)
+        {
+            if (files == null || !files.Any())
+            {
+                return BadRequest(GenericResponseEnvelope<StatementResponse>.Failure("Nenhum arquivo enviado.", "NO_FILES"));
+            }
+            //01 O serviço o objeto completo de dados (SpendingDataList, Dashboard, etc.)
+            //02 Envelopamos o objeto de dados aqui no Controller
+            var result = await _statementOrchestratorService.ExecuteOrchestrationAsync(files);
+            var envelope = GenericResponseEnvelope<StatementResponse>.Success(message: "Extratos processados com sucesso.", value: result);
+            return Ok(envelope);
+        }
+        [HttpPost]
+        [Route("api/statement/processXls")]
+        public async Task<IActionResult> ProcessXls(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                // Retornamos o envelope de falha em vez de apenas uma string
+                return BadRequest(GenericResponseEnvelope<string>.Failure("Arquivo inválido.", "FILE_EMPTY"));
+            }
+            //01 O serviço o objeto completo de dados (SpendingDataList, Dashboard, etc.)
+            //02 Envelopamos o objeto de dados aqui no Controller
+            var result = await _iStatementXlsService.CreateFinalExcelAsync(file);
+            var envelope = GenericResponseEnvelope<StatementResponse>.Success(message: "Extratos processados com sucesso.", value: result);
+            return Ok(envelope);
+        }
+        [HttpPost]
+        [Route("api/statement/uploadExpenses")]
+        public async Task<IActionResult> UploadExpenses(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                // Retornamos o envelope de falha em vez de apenas uma string
+                return BadRequest(GenericResponseEnvelope<string>.Failure("Arquivo inválido.", "FILE_EMPTY"));
+            }
+            await _expenseService.SaveFileAsync(file);
+            return Ok(GenericResponseEnvelope<string>.Success("expenses.csv atualizado com sucesso no servidor"));
+        }
+        #endregion "Upload"
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Api\Infrastructure\HttpResponseMessageResult.cs
+USINGS: Microsoft.AspNetCore.Mvc
+==================================================
+namespace Server.Api.Infrastructure
+{
+    // Classe que implementa a interface IActionResult para retornar um HttpResponseMessage como resultado de uma ação de um controlador
+    public class HttpResponseMessageResult : IActionResult
+    {
+        // Campo privado para armazenar o HttpResponseMessage a ser retornado
+        private readonly HttpResponseMessage _httpResponseMessage;
+        // Construtor que recebe um HttpResponseMessage e o atribui ao campo privado
+        public HttpResponseMessageResult(HttpResponseMessage httpResponseMessage)
+        {
+            _httpResponseMessage = httpResponseMessage;
+        }
+        // Método assíncrono que executa o resultado da ação
+        public async Task ExecuteResultAsync(ActionContext context)
+        {
+            // Obtém o objeto Response do HttpContext
+            var response = context.HttpContext.Response;
+            // Define o código de status da resposta HTTP com base no código de status do HttpResponseMessage
+            response.StatusCode = (int)_httpResponseMessage.StatusCode;
+            // Copia os cabeçalhos do HttpResponseMessage para a resposta HTTP
+            foreach (var header in _httpResponseMessage.Headers)
+            {
+                response.Headers[header.Key] = header.Value.ToArray();
+            }
+            // Copia os cabeçalhos do conteúdo do HttpResponseMessage para a resposta HTTP
+            foreach (var header in _httpResponseMessage.Content.Headers)
+            {
+                response.Headers[header.Key] = header.Value.ToArray();
+            }
+            // Copia o conteúdo do HttpResponseMessage para o corpo da resposta HTTP
+            await _httpResponseMessage.Content.CopyToAsync(response.Body);
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Api\Infrastructure\MultiPartResponse.cs
+USINGS: 
+==================================================
+namespace Server.Api.Infrastructure
+{
+    public class MultiPartResponse
+    {
+        public decimal SuperMarket { get; set; }
+        public decimal Pharmacy { get; set; }
+        public decimal Extra { get; set; }
+        //------------------------------------------
+        public decimal TotalDebit { get; set; }
+        public decimal TotalCredit { get; set; }
+        //------------------------------------------
+        public String FileName { get; set; }
+        public byte[] FileContent { get; set; }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Api\Infrastructure\RecoveredData.cs
+USINGS: 
+==================================================
+namespace Server.Api.Infrastructure
+{
+    public class RecoveredData
+    {
+        public decimal SuperMarket { get; set; }
+        public decimal Pharmacy { get; set; }
+        public decimal Extra { get; set; }
+        //------------------------------------------
+        public decimal TotalDebit { get; set; }
+        public decimal TotalCredit { get; set; }
+        //------------------------------------------
+        public string FilePath { get; set; }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Api\Infrastructure\Mapper\MappingProfile.cs
+USINGS: AutoMapper, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel
+==================================================
+namespace Server.Api.Infrastructure.Mapper
+{
+    public class MappingProfile : Profile
+    {
+        public MappingProfile()
+        {
+            CreateMap<StatementResponse, RecoveredData>();
+            CreateMap<RecoveredData, StatementResponse>();
+            // Adicione outros mapeamentos conforme necessário
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\ClipboardModels\ClipboardResponse.cs
+USINGS: 
+==================================================
+namespace Server.Api.Domain.Model
+{
+    public class ClipboardResponse
+    {
+        public string? Clipboard { get; set; }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\ClipboardModels\Transmition.cs
+USINGS: 
+==================================================
+namespace Server.Api.Domain.Model
+{
+    public class Transmition
+    {
+        private string? _content;
+        public string? Content
+        {
+            get => _content ?? "";
+            set => _content = value;
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\BankService\BankService.cs
+USINGS: Server.Api.Domain.Service.BankService.Interface, Server.Api.Domain.Service.InfrastrutureService.Interface, Server.Api.Domain.Service.ProcessStatementService.Enum, Server.Api.Domain.Service.ProcessStatementService.Model, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel, Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface, System.Globalization
+==================================================
+namespace Server.Api.Domain.Service.BankService
+{
+    public class BankService : IBankService
+    {
+        private readonly IExpenseService _expenseService;
+        private readonly IXlsService _xlsService;
+        private readonly IDataSanitizerService _normalizeService;
+        private readonly IFinancialIntelligenceService _processStatementService;
+        //public string _statementFilePath;
+        //public string _expenseFilePath;
+        public string _finalFilePath;
+        public List<Expense> _expenses;
+        public BankType bank;
+        public BankService(IExpenseService expenseService,
+                         IXlsService xlsService,
+                         IDataSanitizerService normalizeService,
+                         IFinancialIntelligenceService processStatementService
+                         )
+        {
+            _expenseService = expenseService;
+            _xlsService = xlsService;
+            _normalizeService = normalizeService;
+            _processStatementService = processStatementService;
+        }
+        //public async Task<StatementResponse> ProcessRawBankDetailsAsync(string statementFilePath, string expenseFilePath, string finalFilePath)
+        //{
+        //    StatementResponse statementResponse = new StatementResponse();
+        //    try
+        //    {
+        //        #region CARGA DOS DADOS BRUTOS
+        //        _finalFilePath = finalFilePath;
+        //        //01 CARREGO A LISTA DE DESPESAS CONHECIDAS
+        //        _expenses = await _expenseService.GetAll();
+        //        //02 CARREGO OS DADOS DO EXTRATO
+        //        List<SpendingData> spendingDataList = new List<SpendingData>();
+        //        string[] lines = File.ReadAllLines(statementFilePath, Encoding.Latin1);
+        //        int cabecalho = 0;
+        //        string? xlsName = null;
+        //        foreach (string line in lines)
+        //        {
+        //            SpendingData spendingDataItem = new SpendingData();
+        //            string cleanLine = line.Replace("\"", "");
+        //            string[] aItem = cleanLine.Split(line.Contains(";") ? ';' : ',');
+        //            if (cabecalho == 0)
+        //            {
+        //                //02.01 DETERMINA O BANCO & DEFINE CABEÇALHO PADRÃO
+        //                //BANCO DO BRASIL
+        //                //--0---------1-----------------2-------------3--------------------4----------------5----
+        //                //Data";"Dependencia Origem";"Histórico";"Data do Balancete";"Número do documento";"Valor"
+        //                //NUBANK
+        //                //------0--1--------2---
+        //                //date";"title";"amount"
+        //                //string cleanCab = line.Replace("\"", "");
+        //                //string[] aItem = cleanCab.Split(line.Contains(";") ? ';' : ',');
+        //                bank = BankType.BB;
+        //                if (aItem[0].StartsWith("DATE", StringComparison.OrdinalIgnoreCase))
+        //                {
+        //                    bank = BankType.Nubank;
+        //                }
+        //                spendingDataItem.Date = "DATA";
+        //                spendingDataItem.Subject = "CASA";
+        //                spendingDataItem.StringValue = "VALOR";
+        //                spendingDataItem.Type = "TIPO";
+        //                spendingDataItem.Score = "SCORE";
+        //            }
+        //            else
+        //            {
+        //                if (bank == BankType.BB)
+        //                {
+        //                    spendingDataItem.Date = aItem[0];
+        //                    spendingDataItem.Subject = aItem[2].ToUpper();
+        //                    spendingDataItem.GrossValue = aItem[5];
+        //                    spendingDataItem.StringValue = _normalizeService.NormalizeValue(aItem[5]);
+        //                    spendingDataItem.DecimalValue = _normalizeService.NormalizeToDecimal(spendingDataItem.StringValue);
+        //                    spendingDataItem.IsCredit = !aItem[5].Contains("-");
+        //                }
+        //                else
+        //                {
+        //                    spendingDataItem.Date = NormalizeDate(aItem[0]);
+        //                    spendingDataItem.Subject = aItem[1].ToUpper();
+        //                    spendingDataItem.GrossValue = aItem[2];
+        //                    spendingDataItem.StringValue = _normalizeService.NormalizeValue(aItem[2]);
+        //                    spendingDataItem.DecimalValue = _normalizeService.NormalizeToDecimal(spendingDataItem.StringValue);
+        //                    spendingDataItem.IsCredit = aItem[2].Contains("-");
+        //                }
+        //                spendingDataItem = _processStatementService.ProcessSubject(spendingDataItem, _expenses);
+        //                //------------------------------------------------------
+        //                if (string.IsNullOrEmpty(xlsName))
+        //                {
+        //                    xlsName = _xlsService.CreateXlsArchiveName(bank, spendingDataItem.Date, "xlsx");
+        //                }
+        //            }
+        //            spendingDataList.Add(spendingDataItem);
+        //            cabecalho++;
+        //        }
+        //        #endregion CARGA DOS DADOS BRUTOS
+        //        #region PROCESSAMENTO DAS DESPESAS FIXAS E SOMADORES
+        //        statementResponse = _processStatementService.ProcessTotalKnowSpending(spendingDataList);
+        //        #endregion PROCESSAMENTO DAS DESPESAS FIXAS E SOMADORES
+        //        #region CRIACAO DO XLS FINAL
+        //        xlsName = xlsName ?? "";
+        //        string xlsFilePath = Path.Combine(finalFilePath, xlsName);
+        //        if (_xlsService.CreateNewFileXLS(xlsFilePath, spendingDataList))
+        //        {
+        //            statementResponse.FilePath = xlsFilePath;
+        //            return statementResponse;
+        //        }
+        //        else
+        //        {
+        //            return statementResponse;
+        //        }
+        //        #endregion CRIACAO DO XLS FINAL
+        //    }
+        //    catch (Exception)
+        //    {
+        //        return null;
+        //    }
+        //}
+        private static string? NormalizeDate(string dateString)
+        {
+            string[] formats = { "yyyy-MM-dd", "dd/MM/yyyy" };
+            return DateTime.TryParseExact(dateString,
+                                           formats,
+                                           CultureInfo.InvariantCulture,
+                                           DateTimeStyles.None,
+                                          out var date) ? date.ToString("dd/MM/yyyy") : null;
+        }
+        StatementResponse IBankService.ProcessRawBankDetailsAsync(string statementFilePath, string expenseFilePath, string finalFilePath)
+        {
+            throw new NotImplementedException();
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\BankService\Interface\IBankService.cs
+USINGS: Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel
+==================================================
+namespace Server.Api.Domain.Service.BankService.Interface
+{
+    public interface IBankService
+    {
+        StatementResponse ProcessRawBankDetailsAsync(string statementFilePath, string expenseFilePath, string finalFilePath);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\InterfaceService\InterfaceService.cs
+USINGS: Server.Api.Domain.Service.InterfaceService.Interface, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel
+==================================================
+namespace Server.Api.Domain.Service.InterfaceService
+{
+    internal class InterfaceService : IInterfaceService
+    {
+        public StatementResponse ProcessAllStatments(string statementFilePath, string expenseFilePath, string finalFilePath)
+        {
+            throw new NotImplementedException();
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\InterfaceService\Interface\IInterfaceService.cs
+USINGS: Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel
+==================================================
+namespace Server.Api.Domain.Service.InterfaceService.Interface
+{
+    internal interface IInterfaceService
+    {
+        public StatementResponse ProcessAllStatments(string statementFilePath, string expenseFilePath, string finalFilePath);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\SharedService\Crypto.cs
+USINGS: Server.Api.Domain.Service.SharedService.Interface, System.Security.Cryptography, System.Text
+==================================================
+namespace Server.Api.Domain.Infrastructure
+{
+    namespace EncryptionLib
+    {
+        public class Crypto : ICrypto
+        {
+            //---------------------------------------------------------------------------------------------------
+            // Lib de criptografia, uso modelo de chave estatica porque o uso aqui era apenas para um teste
+            //---------------------------------------------------------------------------------------------------
+            private static byte[] static_Key = Encoding.ASCII.GetBytes(@"qwr{@^h`h&_`50/ja9!'dcmh3!uw<&=?");
+            private static byte[] static_IV = Encoding.ASCII.GetBytes(@"9/\~V).A,lY&=t2b");
+            public string Encrypt(string? input)
+            {
+                if (input == null)
+                {
+                    throw new ArgumentNullException("input");
+                }
+                using (Aes aesAlg = Aes.Create())
+                {
+                    aesAlg.Key = static_Key;
+                    aesAlg.IV = static_IV;
+                    ICryptoTransform encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
+                    using (MemoryStream msEncrypt = new MemoryStream())
+                    {
+                        using (CryptoStream csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
+                        {
+                            using (StreamWriter swEncrypt = new StreamWriter(csEncrypt))
+                            {
+                                swEncrypt.Write(input);
+                            }
+                        }
+                        return Convert.ToBase64String(msEncrypt.ToArray());
+                    }
+                }
+            }
+            public string Decrypt(string? input)
+            {
+                if (input == null)
+                {
+                    throw new ArgumentNullException("input");
+                }
+                using (Aes aesAlg = Aes.Create())
+                {
+                    aesAlg.Key = static_Key;
+                    aesAlg.IV = static_IV;
+                    ICryptoTransform decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
+                    using (MemoryStream msDecrypt = new MemoryStream(Convert.FromBase64String(input)))
+                    {
+                        using (CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
+                        {
+                            using (StreamReader srDecrypt = new StreamReader(csDecrypt))
+                            {
+                                return srDecrypt.ReadToEnd();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\SharedService\DataSanitizerService.cs
+USINGS: Server.Api.Domain.Service.InfrastrutureService.Interface, System.Globalization, System.Text
+==================================================
+namespace Server.Api.Domain.Service.InfrastrutureService
+{
+    public class DataSanitizerService : IDataSanitizerService
+    {
+        public string NormalizeString(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return string.Empty;
+            // Remove aspas e pontuações comuns de CSV antes de normalizar acentos
+            //string cleanText = text.Replace("\"", "").Replace(";", "").Replace(",", "");
+            text = text.Normalize(NormalizationForm.FormD);
+            var chars = text.Where(c => CharUnicodeInfo.GetUnicodeCategory(c) !=
+                                             UnicodeCategory.NonSpacingMark)
+                                 .ToArray();
+            return new string(chars).Normalize(NormalizationForm.FormC).ToLowerInvariant().Trim();
+        }
+        public string NormalizeStringSize(string text, int size)
+        {
+            string normalized = text;
+            try
+            {
+                if (text.Length > size)
+                {
+                    normalized = text.Substring(0, size);
+                }
+                else
+                {
+                    normalized = text + new string(' ', size - text.Length);
+                }
+                return normalized;
+            }
+            catch (Exception)
+            {
+                return "Error";
+            }
+        }
+        public string NormalizeValue(string value)
+        {
+            string normalizedValue = value.Replace(".", ",")
+                                     .Replace("-", "");
+            return normalizedValue;
+        }
+        public decimal NormalizeToDecimal(string value)
+        {
+            if (decimal.TryParse(value.Replace(".", ",")
+                                      .Replace("-", ""), out decimal decimalValue))
+            {
+                return decimalValue;
+            }
+            return 0.0m;
+        }
+        public decimal NormalizeStringToDecimal(string value)
+        {
+            // A InvariantCulture utiliza o ponto (.) como separador decimal, padrão em CSVs
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+            var style = System.Globalization.NumberStyles.AllowDecimalPoint |
+                        System.Globalization.NumberStyles.AllowThousands |
+                        System.Globalization.NumberStyles.AllowTrailingSign | // Permite sinal no fim
+                        System.Globalization.NumberStyles.AllowLeadingSign;   // Permite sinal no início
+            if (decimal.TryParse(value, style, culture, out decimal valorConvertido))
+            {
+                return valorConvertido; // Aqui o sinal negativo será preservado
+            }
+            else
+            {
+                return 0.0m;
+            }
+        }
+        public string NormalizeDateTme(DateTime date)
+        {
+            return date.ToString("dd/MM/yyyy", new CultureInfo("pt-BR"));
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\SharedService\EncryptionService.cs
+USINGS: Server.Api.Domain.Service.InfrastrutureService.Interface, Server.Api.Domain.Service.SharedService.Interface
+==================================================
+namespace Server.Api.Domain.Service.InfrastrutureService
+{
+    public class EncryptionService : IEncryptionService
+    {
+        private readonly ICrypto _crypto;
+        public EncryptionService(ICrypto crypto)
+        {
+            _crypto = crypto;
+        }
+        public string Encrypt(string data)
+        {
+            return _crypto.Encrypt(data);
+        }
+        public string Decrypt(string data)
+        {
+            return _crypto.Decrypt(data);
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\SharedService\HttpClientService.cs
+USINGS: Server.Api.Domain.Service.InfrastrutureService.Interface
+==================================================
+namespace Server.Api.Domain.Service.InfrastrutureService
+{
+    public class HttpClientService : IHttpClientService
+    {
+        private readonly HttpClient _httpClient;
+        public HttpClientService(HttpClient httpClient)
+        {
+            _httpClient = httpClient;
+        }
+        public async Task<HttpResponseMessage> GetAsync(string url)
+        {
+            return await _httpClient.GetAsync(url);
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\SharedService\XlsService.cs
+USINGS: OfficeOpenXml, Server.Api.Domain.Service.InfrastrutureService.Interface, Server.Api.Domain.Service.ProcessStatementService.Enum, Server.Api.Domain.Service.ProcessStatementService.Model, System.Globalization
+==================================================
+namespace Server.Api.Domain.Service.InfrastrutureService
+{
+    public class XlsService : IXlsService
+    {
+        public string ConvertCsvToXls(string csvFilePath, string xlsFilePath)
+        {
+            FileInfo csvFile = new FileInfo(csvFilePath);
+            FileInfo xlsFile = new FileInfo(xlsFilePath);
+            using (ExcelPackage package = new ExcelPackage(xlsFile))
+            {
+                ExcelWorksheet worksheet = package.Workbook.Worksheets.Add("Sheet1");
+                int row = 1;
+                foreach (string line in File.ReadLines(csvFilePath))
+                {
+                    string[] fields = line.Split(',');
+                    int col = 1;
+                    foreach (string field in fields)
+                    {
+                        worksheet.Cells[row, col].Value = field;
+                        col++;
+                    }
+                    row++;
+                }
+                // Example: Setting font size and color for column A
+                //using (ExcelRange colA = worksheet.Cells[1, 1, row - 1, 1])
+                //{
+                //    colA.Style.Font.Size = 12;
+                //    colA.Style.Font.Color.SetColor(System.Drawing.Color.Blue);
+                //    // Additional formatting options can be set, like bold, italic, underline, etc.
+                //}
+                package.Save();
+            }
+            return xlsFilePath;
+        }
+        //public bool CreateNewFileCSV(string finalFilePath, List<SpendingData> spendingData)
+        //{
+        //    // CRIA NOVO ARQUIVO
+        //    try
+        //    {
+        //        using (StreamWriter writer = new StreamWriter(new FileStream(finalFilePath, FileMode.CreateNew), Encoding.Latin1))
+        //        {
+        //            foreach (SpendingData line in spendingData)
+        //            {
+        //                writer.WriteLine(line.LineCSV());
+        //            }
+        //        }
+        //        return true;
+        //    }
+        //    catch (Exception)
+        //    {
+        //        return false;
+        //    }
+        //}
+        public bool CreateNewFileXLS(string xlsFilePath, List<SpendingData> spendingData)
+        {
+            try
+            {
+                //FileInfo xlsFile = new FileInfo(xlsFilePath);
+                //using (ExcelPackage package = new ExcelPackage(xlsFile))
+                //{
+                //    // Definir compatibilidade com Excel 97-2003
+                //    package.Compatibility.IsWorksheets1Based = true;
+                //    ExcelWorksheet worksheet = package.Workbook.Worksheets.Add("Sheet1");
+                //    int linhaInicial = 1;
+                //    int row = linhaInicial;
+                //    foreach (SpendingData field in spendingData)
+                //    {
+                //        worksheet.Cells[row, 1].Value = field.Date;
+                //        worksheet.Cells[row, 2].Value = field.Subject;
+                //        worksheet.Cells[row, 3].Value = field.StringValue;
+                //        worksheet.Cells[row, 4].Value = field.Type;
+                //        worksheet.Cells[row, 5].Value = field.Score;
+                //        if (double.TryParse(field.StringValue.ToString(), out double numericValue))
+                //        {
+                //            worksheet.Cells[row, 3].Value = numericValue;
+                //        }
+                //        row++;
+                //    }
+                //    // Definir formato da coluna 3 como moeda brasileira sem o símbolo de moeda
+                //    // linha inicial, coluna inicial, linha(s) finais, coluna final
+                //    // LINHA DOIS POIS LINHA 1 É CAB
+                //    var colC = worksheet.Cells[linhaInicial, 3, row - 1, 3];
+                //    colC.Style.Numberformat.Format = "#,##0.00"; // Formato sem símbolo de moeda
+                //    package.Save();
+                return true;
+                //}
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+        public string CreateXlsArchiveName(BankType bankType, string dateString, string extension)
+        {
+            if (DateTime.TryParseExact(dateString, "dd/MM/yyyy", CultureInfo.InvariantCulture,
+                                                                 DateTimeStyles.None,
+                                                                 out DateTime dateTime))
+            {
+                string bank;
+                if (bankType == BankType.BB)
+                {
+                    //A Primeira linha é os Saldo do mês anterior.
+                    dateTime = dateTime.AddMonths(1);
+                    bank = "BB";
+                }
+                else
+                {
+                    bank = "NU";
+                }
+                return $"{bank}-{dateTime.Month:00}-{dateTime.ToString("MMMM").ToUpper()}-{dateTime.ToString("yyyy")}.{extension}";
+            }
+            return "00 MONTH.csv";
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\SharedService\Interface\ICrypto.cs
+USINGS: 
+==================================================
+namespace Server.Api.Domain.Service.SharedService.Interface
+{
+    public interface ICrypto
+    {
+        string Encrypt(string input);
+        string Decrypt(string input);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\SharedService\Interface\IDataSanitizerService.cs
+USINGS: 
+==================================================
+namespace Server.Api.Domain.Service.InfrastrutureService.Interface
+{
+    public interface IDataSanitizerService
+    {
+        string NormalizeString(string text);
+        string NormalizeStringSize(string text, int size);
+        string NormalizeValue(string value);
+        decimal NormalizeToDecimal(string value);
+        decimal NormalizeStringToDecimal(string value);
+        string NormalizeDateTme(DateTime date);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\SharedService\Interface\IEncryptionService.cs
+USINGS: 
+==================================================
+namespace Server.Api.Domain.Service.InfrastrutureService.Interface
+{
+    public interface IEncryptionService
+    {
+        public string Encrypt(string data);
+        public string Decrypt(string data);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\SharedService\Interface\IHttpClientService.cs
+USINGS: 
+==================================================
+namespace Server.Api.Domain.Service.InfrastrutureService.Interface
+{
+    public interface IHttpClientService
+    {
+        Task<HttpResponseMessage> GetAsync(string url);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\SharedService\Interface\IXlsService.cs
+USINGS: Server.Api.Domain.Service.ProcessStatementService.Enum, Server.Api.Domain.Service.ProcessStatementService.Model
+==================================================
+namespace Server.Api.Domain.Service.InfrastrutureService.Interface
+{
+    public interface IXlsService
+    {
+        string ConvertCsvToXls(string csvFilePath, string xlsFilePath);
+        //bool CreateNewFileCSV(string finalFilePath, List<SpendingData> spendingData);
+        bool CreateNewFileXLS(string xlsFilePath, List<SpendingData> spendingData);
+        string CreateXlsArchiveName(BankType bankType, string dateString, string extension);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\StatementOrchestratorService.cs
+USINGS: Microsoft.AspNetCore.Http, Server.Api.Domain.Service.InfrastrutureService.Interface, Server.Api.Domain.Service.ProcessStatementService.Interface, Server.Api.Domain.Service.ProcessStatementService.Model, Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract.Interface, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel, Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface
+==================================================
+public class StatementOrchestratorService : IStatementOrchestratorService
+{
+    private readonly IStatementMapperService _statementMapperService;
+    private readonly IFinancialIntelligenceService _financialIntelligenceService;
+    private readonly IStatementService _statementService;
+    private readonly IExpenseService _expenseService;
+    private readonly IStatementXlsService _statementXlsService;
+    public StatementOrchestratorService(
+        IStatementMapperService statementMapperService,
+        IFinancialIntelligenceService financialIntelligenceService,
+        IStatementService stamentService,
+        IExpenseService expenseService,
+        IStatementXlsService statementXlsService)
+    {
+        _statementMapperService = statementMapperService;
+        _financialIntelligenceService = financialIntelligenceService;
+        _statementService = stamentService;
+        _expenseService = expenseService;
+        _statementXlsService = statementXlsService;
+    }
+    public async Task<StatementResponse> ExecuteOrchestrationAsync(List<IFormFile> files)
+    {
+        // 01.Criar uma lista de transações a partir dos arquivos CSV
+        List<TransactionModel> transactions = await _statementService.ProcessCsvFilesAsync(files);
+        if (!transactions.Any())
+        {
+            //todo : criar uma exception customizada para isso
+        }
+        // 02. Mapear as transações para o modelo de dados de gastos
+        var allSpending = new List<SpendingData>();
+        var statementResponse = new StatementResponse();
+        var expenses = await _expenseService.GetAll();
+        allSpending = _statementMapperService.MapToSpendingData(transactions);
+        // 03 - Inteligência Local (Síncrona/Heurística)
+        statementResponse = _financialIntelligenceService.AnalyzeSpending(allSpending, expenses);
+        // 04 - Inteligência Artificial (Assíncrona/Probabilística) e com Fallback
+        // Passamos a lista e o método nos devolve a mesma lista atualizada
+        try
+        {
+            // Aumentamos a segurança com o Timeout
+            statementResponse.SpendingDataList = await _financialIntelligenceService
+                .AnalyzeSpendingUsingIAAsync(statementResponse.SpendingDataList)
+                .WaitAsync(TimeSpan.FromSeconds(15));
+        }
+        catch (TimeoutException)
+        {
+            ApplyIAFallback(statementResponse.SpendingDataList, "Tempo limite excedido (15s)");
+        }
+        catch (Exception ex)
+        {
+            // Aqui você pode logar o erro real (ex) se tiver um logger disponível
+            ApplyIAFallback(statementResponse.SpendingDataList, "Erro técnico no serviço de IA");
+        }
+        //04  Cria o XLS
+        await _statementXlsService.CreatePreFormatedExcelAsync(statementResponse);
+        if (System.IO.File.Exists(statementResponse.FilePath))
+        {
+            byte[] fileBytes = await System.IO.File.ReadAllBytesAsync(statementResponse.FilePath);
+            statementResponse.FileBase64 = Convert.ToBase64String(fileBytes);
+        }
+        return statementResponse;
+    }
+    #region Hellper
+    private void ApplyIAFallback(List<SpendingData> list, string reason)
+    {
+        // Usamos o condicional para garantir que não tentamos iterar em lista nula
+        if (list == null) return;
+        foreach (var item in list)
+        {
+            // Só marcamos como falha se o item ainda não tiver sido processado com sucesso
+            if (!item.ProcessedByIA)
+            {
+                item.SourceRule = $"Fallback: {reason}";
+                item.IAExplanation = $"A categorização automática não foi concluída devido a: {reason}";
+                item.ConfidenceLevel = 0;
+            }
+        }
+    }
+    #endregion Hellper
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Enum\BankType.cs
+USINGS: 
+==================================================
+namespace Server.Api.Domain.Service.ProcessStatementService.Enum
+{
+    /// Identifica as instituições financeiras suportadas pelo orquestrador.
+    public enum BankType
+    {
+        Unknown = 0,
+        BB = 1,
+        Nubank = 2
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Enum\FinancialType.cs
+USINGS: 
+==================================================
+namespace Server.Api.Domain.Service.ProcessStatementService.Enum
+{
+    /// Define as categorias financeiras para o processamento de extratos.
+    public enum FinancialType
+    {
+        Ignore = 0,
+        ExtraDebit = 1,
+        SupermarketDebit = 2,
+        PharmacyDebit = 3,
+        UnknownCredit = 4,
+        UnknownDebit = 5
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Interface\IStatementOrchestratorService.cs
+USINGS: Microsoft.AspNetCore.Http, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel
+==================================================
+namespace Server.Api.Domain.Service.ProcessStatementService.Interface
+{
+    /// Interface maestra responsável por orquestrar o fluxo completo de
+    /// processamento de extratos bancários de múltiplas origens.
+    public interface IStatementOrchestratorService
+    {
+        /// Executa o pipeline completo: Identificação, Extração, Mapeamento,
+        /// Classificação e Consolidação dos arquivos enviados.
+        Lista de arquivos CSV enviados via API.</param>
+        Objeto StatementResponse contendo os totais e a lista classificada para o Dashboard.</returns>
+        Task<StatementResponse> ExecuteOrchestrationAsync(List<IFormFile> files);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Model\Expense.cs
+USINGS: 
+==================================================
+namespace Server.Api.Domain.Service.ProcessStatementService.Model
+{
+    public class Expense
+    {
+        public string? Origin { get; set; }
+        public string? Category { get; set; }
+        public string? CategoryOwner { get; set; }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Model\RawBankDetails.cs
+USINGS: 
+==================================================
+namespace Server_API.Domain.Service.ProcessStatementService.Model
+{
+    public class RawBankDetails
+    {
+        //----------------------------------------------------------
+        // 1- BB
+        // 2- NUBANK
+        //----------------------------------------------------------
+        public string[] aRawData { get; set; }
+        public int BankId { get; set; }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Model\SpendingData.cs
+USINGS: Server.Api.Domain.Service.ProcessStatementService.Enum
+==================================================
+namespace Server.Api.Domain.Service.ProcessStatementService.Model
+{
+    public class SpendingData
+    {
+        public string? Date { get; set; }
+        public string? Subject { get; set; }
+        public decimal Value { get; set; }
+        //----------------------------------------
+        public bool IsCredit { get; set; }
+        public FinancialType FinancialType { get; set; }
+        public string? Category { get; set; }
+        public string? CategoryOwner { get; set; }
+        public string? Bank { get; set; }
+        public string? Score { get; set; }
+        // --- Metadados para Rastreabilidade e I.A. ---
+        /// Identifica se a categoria (Owner) veio de regra local ou IA.
+        public string? SourceRule { get; set; }
+        /// Indica se este item foi processado/categorizado pela Inteligência Artificial.
+        public bool ProcessedByIA { get; set; }
+        /// Nível de confiança da IA na categorização (0.0 a 1.0 ou 0 a 100).
+        public double? ConfidenceLevel { get; set; }
+        /// Armazena o motivo ou a justificativa da IA para tal categoria,
+        /// útil para conferência do usuário.
+        public string? IAExplanation { get; set; }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Model\TransactionModel.cs
+USINGS: 
+==================================================
+namespace Server.Api.Domain.Service.ProcessStatementService.Model
+{
+    public class TransactionModel
+    {
+        public DateTime Date { get; set; }
+        public string Description { get; set; } = string.Empty;
+        public decimal Value { get; set; }
+        public string OriginBank { get; set; } = string.Empty; // "BB" ou "Nubank"
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Model\GroupedModel\FinancialDashboard.cs
+USINGS: 
+==================================================
+namespace Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel
+{
+    public class FinancialDashboard
+    {
+        public decimal TotalDebit { get; set; }
+        public decimal TotalCredit { get; set; }
+        public decimal Supermarket { get; set; }
+        public decimal Pharmacy { get; set; }
+        public decimal Extra { get; set; }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Model\GroupedModel\StatementResponse.cs
+USINGS: Server.Api.Domain.Service.ProcessStatementService.Model
+==================================================
+namespace Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel
+{
+    public class StatementResponse
+    {
+        public StatementResponse()
+        {
+            // Garante que os objetos internos não sejam nulos
+            SpendingDataList = new List<SpendingData>();
+            Dashboard = new FinancialDashboard();
+            FilePath = string.Empty;
+        }
+        public List<SpendingData> SpendingDataList { get; set; }
+        public FinancialDashboard Dashboard { get; set; }
+        public string FilePath { get; set; }
+        public string FileBase64 { get; set; }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\CsvExtractor.cs
+USINGS: Microsoft.AspNetCore.Http, Server_API.Domain.Service.ProcessStatementService.Enum, Server_API.Domain.Service.ProcessStatementService.Model, var reader = new StreamReader(file.OpenReadStream())
+==================================================
+public class CsvExtractor : ICsvExtractor
+{
+    public async Task<List<RawBankDetails>> ExtractAsync(IFormFile file, BankType bankType)
+    {
+        var result = new List<RawBankDetails>();
+        await reader.ReadLineAsync(); // Pula o cabeçalho
+        while (reader.Peek() >= 0)
+        {
+            var line = await reader.ReadLineAsync();
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            result.Add(new RawBankDetails
+            {
+                BankId = (int)bankType,
+                aRawData = line.Split(',')
+            });
+        }
+        return result;
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\ExpenseService.cs
+USINGS: Microsoft.AspNetCore.Http, Server.Api.Domain.Service.ProcessStatementService.Model, System.Text, var reader = new StreamReader(_fullPath, detectEncodingFromByteOrderMarks: true)
+==================================================
+namespace Server.Api.Domain.Service.ExpenseService
+{
+    public class ExpenseService : IExpenseService
+    {
+        private readonly string _fullPath;
+        public ExpenseService(string appPath)
+        {
+            _fullPath = Path.Combine(appPath, "Expenses", "expenses.csv");
+        }
+        public async Task SaveFileAsync(IFormFile file)
+        {
+            // 1. Garante que o diretório exista antes de tentar salvar
+            var directory = Path.GetDirectoryName(_fullPath);
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            // 2. Salva o arquivo (FileMode.Create sobrescreve o antigo automaticamente)
+            using (var stream = new FileStream(_fullPath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+        }
+        public async Task<List<Expense>> GetAll()
+        {
+            List<Expense> expenses = new List<Expense>();
+            try
+            {
+                if (!File.Exists(_fullPath)) return expenses;
+                string content = await reader.ReadToEndAsync();
+                string[] lines = content.Split(Environment.NewLine);
+                foreach (string line in lines)
+                {
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+                    string cleanLine = line.Replace("\"", "");
+                    string[] aItem = cleanLine.Split(';');
+                    if (aItem.Length >= 2)
+                    {
+                        expenses.Add(new Expense
+                        {
+                            Origin = aItem[0],
+                            Category = aItem[1],
+                            CategoryOwner = aItem.Length > 2 ? aItem[2] : null
+                        });
+                    }
+                }
+                return expenses;
+            }
+            catch (Exception)
+            {
+                return expenses;
+            }
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\FinancialDashboarService.cs
+USINGS: Server.Api.Domain.Service.ProcessStatementService.Enum, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel, Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface, System
+==================================================
+namespace Server.Domain.Service.StatmentOrchestration.OrchestrationContract
+{
+    public class FinancialDashboarService : IFinancialDashboardService
+    {
+        public void GerateDashboardTotals(StatementResponse processedData)
+        {
+            foreach (var item in processedData.SpendingDataList)
+            {
+                //if (item.FinancialType == FinancialType.Ignore) return;
+                decimal value = Math.Abs(item.Value);
+                if (item.IsCredit)
+                {
+                    processedData.Dashboard.TotalCredit += value;
+                }
+                else
+                {
+                    processedData.Dashboard.TotalDebit += value;
+                    switch (item.FinancialType)
+                    {
+                        case FinancialType.SupermarketDebit:
+                            processedData.Dashboard.Supermarket += value;
+                            break;
+                        case FinancialType.PharmacyDebit:
+                            processedData.Dashboard.Pharmacy += value;
+                            break;
+                        case FinancialType.ExtraDebit:
+                            processedData.Dashboard.Extra += value;
+                            break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\FinancialIntelligenceService.cs
+USINGS: Core.AI.Contracts.Interfaces, Server.Api.Domain.Service.ProcessStatementService.Enum, Server.Api.Domain.Service.ProcessStatementService.Model, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel, Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface, Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface
+==================================================
+public class FinancialIntelligenceService : IFinancialIntelligenceService
+{
+    private readonly IExpenseService _expenseService;
+    private readonly IFinancialAiAnalyst _aiAnalyst;
+    private readonly IFinancialDashboardService _financialDashboardService;
+    // Atualize o construtor para receber ambos os serviços
+    public FinancialIntelligenceService(IExpenseService expenseService,
+                                        IFinancialAiAnalyst aiAnalyst,
+                                        IFinancialDashboardService financialDashboardService)
+    {
+        _expenseService = expenseService;
+        _aiAnalyst = aiAnalyst; // Agora o campo deixará de ser nulo
+        _financialDashboardService = financialDashboardService;
+    }
+    public StatementResponse AnalyzeSpending(List<SpendingData> extractedTransactions, List<Expense> expenses)
+    {
+        var statementResponse = new StatementResponse();
+        foreach (var item in extractedTransactions)
+        {
+            if (string.IsNullOrWhiteSpace(item.Subject)) continue;
+            string subjectUpper = item.Subject.ToUpper().Trim();
+            // 01. Definição do Tipo Financeiro
+            // BB - Debito é negativo, Crédito é positivo
+            // NUbank - somente tem debito , mas o valor é positivo
+            item.IsCredit = false;
+            item.IsCredit = subjectUpper.Contains("CRÉDITO") ||
+                            subjectUpper.Contains("CREDITO") ||
+                            subjectUpper.Contains("DEPÓSITO") ||
+                            subjectUpper.Contains("DEPOSITO") ||
+                            subjectUpper.Contains("DEVOLVIDO");
+            // 02. Processamento por tipo de fluxo
+            Expense expense = new Expense { Origin = null, Category = null, CategoryOwner = null };
+            if (item.IsCredit)
+            {
+                // Se for crédito, decidimos se é um crédito que nos interessa ou se ignoramos ruído
+                item.FinancialType = IsInternalMovement(subjectUpper)
+                    ? FinancialType.Ignore
+                    : FinancialType.UnknownCredit;
+            }
+            else
+            {
+                // Se for débito, verificamos se é ruído primeiro
+                if (IsInternalMovement(subjectUpper))
+                {
+                    item.FinancialType = FinancialType.Ignore;
+                }
+                else
+                {
+                    // Se for um débito real, buscamos a categoria no CSV
+                    expense = DetermineOwner(subjectUpper, expenses);
+                    item.FinancialType = MapToFinancialType(expense, item.IsCredit);
+                }
+            }
+            // 03. Determinação do Dono baseada no seu expenses.csv
+            expense = DetermineOwner(subjectUpper, expenses);
+            item.Category = expense.Category;
+            item.CategoryOwner = expense.CategoryOwner;
+            // 04. Cálculo do Score
+            item.Score = CalculateFinancialImpactScore(item.Value);
+            //05 Ajuste do valor para negativo se for débito
+            if (!item.IsCredit)
+            {
+                item.Value = -Math.Abs(item.Value);
+            }
+        }
+        //06 Com tudo processado , geramos os totais para o dashboard
+        statementResponse.SpendingDataList = extractedTransactions;
+        _financialDashboardService.GerateDashboardTotals(statementResponse);
+        return statementResponse;
+    }
+    public async Task<List<SpendingData>> AnalyzeSpendingUsingIAAsync(List<SpendingData> spendingList, CancellationToken ct = default)
+    {
+        // 1. Filtramos apenas os itens onde a categoria (Owner) ainda está vazia
+        var pendingItems = spendingList
+            .Where(s => string.IsNullOrWhiteSpace(s.Category))
+            .ToList();
+        if (!pendingItems.Any())
+            return spendingList;
+        try
+        {
+            // 2. Extraímos apenas as descrições (Subject) para enviar à IA
+            var descriptions = pendingItems.Select(x => x.Subject ?? "Transação desconhecida").ToList();
+            // 3. Chamamos a infraestrutura de IA para processar o lote de uma só vez
+            // Note que aqui já usamos o novo método de lote que otimiza o Docker/Ollama
+            var aiResults = (await _aiAnalyst.AnalyzeTransactionBatchAsync(descriptions, ct)).ToList();
+            // 4. Mapeamos os resultados de volta para os nossos objetos de domínio
+            // Usamos um loop indexado para garantir a correspondência da ordem (conforme o prompt exige)
+            for (int i = 0; i < pendingItems.Count; i++)
+            {
+                if (i < aiResults.Count)
+                {
+                    var result = aiResults[i];
+                    var item = pendingItems[i];
+                    item.Category = result.SuggestedCategory;
+                    item.ConfidenceLevel = result.ConfidenceLevel;
+                    item.IAExplanation = result.Reasoning;
+                    item.ProcessedByIA = true;
+                    item.SourceRule = "Usando Serviço de I.A.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Em caso de falha na IA, marcamos os itens para que o utilizador saiba no XLS
+            foreach (var item in pendingItems)
+            {
+                item.SourceRule = "Erro no processamento IA";
+                item.IAExplanation = ex.Message;
+            }
+            // Num cenário sénior, poderíamos fazer um log aqui (ex: Serilog)
+        }
+        return spendingList;
+    }
+    #region Helpers
+    private Expense DetermineOwner(string subjectUpper, List<Expense> expenses)
+    {
+        var match = expenses.FirstOrDefault(e =>
+            !string.IsNullOrEmpty(e.Origin) &&
+            subjectUpper.Contains(e.Origin.ToUpper().Trim()));
+        Expense expense = new Expense { Origin = null, Category = null, CategoryOwner = null };
+        if (match == null)
+            return new Expense { Category = null };
+        expense.Origin = match.Origin;
+        expense.Category = match.Category;
+        expense.CategoryOwner = match.CategoryOwner;
+        return expense;
+    }
+    private bool IsInternalMovement(string subjectUpper)
+    {
+        // Se for uma devolução, não devemos ignorar, pois queremos contabilizar o crédito
+        if (subjectUpper.Contains("DEVOLVIDO"))
+        {
+            return false;
+        }
+        var termsToIgnore = new[]
+        {
+        "APLICAÇÃO", "RESGATE", "INVESTIMENTO", "POUPANÇA", "CDB",
+        "SALDO", "S A L D O", "TRANSFERIDO", "PIX TRANSF", "ESTORNO"
+    };
+        return termsToIgnore.Any(term => subjectUpper.Contains(term));
+    }
+    private FinancialType MapToFinancialType(Expense expense, bool isCredit)
+    {
+        switch (expense.Category?.ToUpper())
+        {
+            case "MERCADO":
+                return FinancialType.SupermarketDebit;
+            case "FARMACIA":
+                return FinancialType.PharmacyDebit;
+            case "EXTRA":
+                return FinancialType.ExtraDebit;
+            default:
+                // Este bloco agora captura: owner nulo, vazio ou categorias não mapeadas
+                return isCredit ? FinancialType.UnknownCredit : FinancialType.UnknownDebit;
+        }
+    }
+    private string CalculateFinancialImpactScore(decimal value)
+    {
+        decimal absoluteValue = Math.Abs(value);
+        if (absoluteValue <= 50)
+        {
+            return "BAIXO";
+        }
+        if (absoluteValue > 50 && absoluteValue <= 150)
+        {
+            return "MÉDIO";
+        }
+        return "ALTO";
+    }
+    #endregion Helpers
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\StatementMapperService.cs
+USINGS: Server.Api.Domain.Service.ProcessStatementService.Model, Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract.Interface
+==================================================
+namespace Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract
+{
+    public class StatementMapperService : IStatementMapperService
+    {
+        public List<SpendingData> MapToSpendingData(List<TransactionModel> transactionModels)
+        {
+            var spendingList = new List<SpendingData>();
+            foreach (var raw in transactionModels)
+            {
+                spendingList.Add(new SpendingData
+                {
+                    Date = raw.Date.ToString("dd-MM-yyyy"),
+                    Subject = raw.Description,
+                    Value = raw.Value,
+                    IsCredit = false,
+                    FinancialType = 0,
+                    Bank = raw.OriginBank,
+                    Score = null,
+                });
+            }
+            return spendingList;
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\StatementService.cs
+USINGS: Microsoft.AspNetCore.Http, Server.Api.Domain.Service.InfrastrutureService.Interface, Server.Api.Domain.Service.ProcessStatementService.Enum, Server.Api.Domain.Service.ProcessStatementService.Model, Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface, System.Text, var reader = new StreamReader(file.OpenReadStream(), selectedEncoding)
+==================================================
+public class StatementService : IStatementService
+{
+    private readonly IDataSanitizerService _dataSanitizerService;
+    public StatementService(IDataSanitizerService dataSanitizerService)
+    {
+        _dataSanitizerService = dataSanitizerService;
+    }
+    public async Task<List<TransactionModel>> ProcessCsvFilesAsync(List<IFormFile> files)
+    {
+        List<TransactionModel> transactionModels = new List<TransactionModel>();
+        foreach (var file in files)
+        {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            BankType bank = await IdentifyBankAsync(file);
+            // 01 BB costuma ser Latin1, o Nubank é invariavelmente UTF-8
+            // 02 Abrimos o arquivo novamente com o Encoding correto para o Parse
+            // 03 Pulamos o cabeçalho no novo reader para não processá-lo como dado
+            //Arquivo não identificado foi ignorado
+            if (bank == BankType.Unknown) continue;
+            Encoding selectedEncoding = (bank == BankType.BB) ? Encoding.GetEncoding("iso-8859-1")
+                                                               : Encoding.UTF8;
+            await reader.ReadLineAsync();
+            switch (bank)
+            {
+                case BankType.BB:
+                    transactionModels.AddRange(await ParseBB(reader));
+                    break;
+                case BankType.Nubank:
+                    transactionModels.AddRange(await ParseNubank(reader));
+                    break;
+            }
+        }
+        return transactionModels;
+    }
+    #region Helper
+    private async Task<BankType> IdentifyBankAsync(IFormFile file)
+    {
+        string rawHeader;
+        try
+        {
+            using (var headerReader = new StreamReader(file.OpenReadStream(), Encoding.UTF8, true))
+            {
+                rawHeader = await headerReader.ReadLineAsync();
+                // 1. Quebra a linha preservando o conteúdo original (removendo apenas as aspas externas se houver)
+                string[] columns = rawHeader.Split(new[] { ';', ',' }, StringSplitOptions.None)
+                                            .Select(c => c.Trim().Replace("\"", ""))
+                                            .ToArray();
+                // 2. Identificação por "Assinatura de Cabeçalho"
+                if (columns.Contains("Data") &&
+                   columns.Contains("Dependencia Origem") &&
+                   columns.Contains("Valor"))
+                {
+                    return BankType.BB;
+                }
+                else if (columns.Contains("date") &&
+                            columns.Contains("title") &&
+                            columns.Contains("amount"))
+                {
+                    return BankType.Nubank;
+                }
+                return BankType.Unknown;
+            }
+        }
+        catch (Exception)
+        {
+            return BankType.Unknown;
+        }
+    }
+    private async Task<List<TransactionModel>> ParseBB(StreamReader reader)
+    {
+        // BB
+        // 00  |01                |02       |03               |04                 |05
+        //---------------------------------------------------------------------------------
+        // Data|Dependencia Origem|Histórico|Data do Balancete|Número do documento|Valor
+        // TransactionModel
+        //--------------------------------------
+        // Date|Description |Value |OriginBank
+        string line = null;
+        List<TransactionModel> transactionModels = new List<TransactionModel>();
+        while ((line = await reader.ReadLineAsync()) != null)
+        {
+            // 1. Validar se a linha não está vazia (comum em CSVs do BB no final do arquivo)
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            try
+            {
+                // 2. Processar a linha (exemplo: Split)
+                string[] dataColumns = line.Split(new[] { ';', ',' }, StringSplitOptions.None)
+                                           .Select(c => c.Trim().Replace("\"", ""))
+                                           .ToArray();
+                transactionModels.Add(new TransactionModel
+                {
+                    Date = DateTime.Parse(dataColumns[0]),
+                    Description = dataColumns[2],
+                    Value = _dataSanitizerService.NormalizeStringToDecimal(dataColumns[5]),
+                    OriginBank = "BB"
+                });
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+        return transactionModels;
+    }
+    private async Task<List<TransactionModel>> ParseNubank(StreamReader reader)
+    {
+        // Nubank
+        // 00  |01   |02
+        //---------------------
+        // date|title|amount
+        // TransactionModel
+        //--------------------------------------
+        // Date|Description |Value |OriginBank
+        string line = null;
+        List<TransactionModel> transactionModels = new List<TransactionModel>();
+        while ((line = await reader.ReadLineAsync()) != null)
+        {
+            // 1. Validar se a linha não está vazia (comum em CSVs do BB no final do arquivo)
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            try
+            {
+                // 2. Processar a linha (exemplo: Split)
+                string[] dataColumns = line.Split(new[] { ';', ',' }, StringSplitOptions.None)
+                                           .Select(c => c.Trim().Replace("\"", ""))
+                                           .ToArray();
+                transactionModels.Add(new TransactionModel
+                {
+                    Date = DateTime.Parse(dataColumns[0]),
+                    Description = dataColumns[1],
+                    Value = _dataSanitizerService.NormalizeStringToDecimal(dataColumns[2]),
+                    OriginBank = "NuBank"
+                });
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+        return transactionModels;
+    }
+    #endregion Helper
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\StatementXlsService.cs
+USINGS: Microsoft.AspNetCore.Http, OfficeOpenXml, OfficeOpenXml.Style, Server.Api.Domain.Service.InfrastrutureService.Interface, Server.Api.Domain.Service.ProcessStatementService.Enum, Server.Api.Domain.Service.ProcessStatementService.Model, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel, Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface, System.Drawing, System.Globalization, var stream = new MemoryStream()
+==================================================
+namespace Server.Api.Domain.Service.InfrastrutureService
+{
+    public class StatementXlsService : IStatementXlsService
+    {
+        private readonly string _fullPath;
+        private IFinancialDashboardService _financialDashboarService;
+        private const int COL_VALUE = 6;
+        private const int COL_SCORE = 7;
+        public StatementXlsService(string appPath, IFinancialDashboardService financialDashboarService)
+        {
+            _fullPath = Path.Combine(appPath, "Statement");
+            _financialDashboarService = financialDashboarService;
+        }
+        #region Criação dos XLS
+        public async Task<StatementResponse> CreatePreFormatedExcelAsync(StatementResponse statementResponse)
+        {
+            statementResponse.FilePath = Path.Combine(_fullPath, CreateXlsArchiveName("preForm", statementResponse.SpendingDataList));
+            FileInfo fileInfo = new FileInfo(statementResponse.FilePath);
+            if (!PrepareXlsEnviroment(fileInfo)) return null;
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            using (var package = new ExcelPackage(fileInfo))
+            {
+                var worksheet = package.Workbook.Worksheets.Add("Lançamentos");
+                //                    01     02       03           04          05      06       07       08        09               10
+                string[] headers = { "Data", "Banco", "Descrição", "Categoria", "Dono", "Valor", "Score", "Origem", "IA: Confiança", "IA: Justificativa" };
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    var cell = worksheet.Cells[1, i + 1];
+                    cell.Value = headers[i];
+                    cell.Style.Font.Bold = true;
+                    cell.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    cell.Style.Fill.BackgroundColor.SetColor(Color.LightGray);
+                    cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                }
+                // 2. Preenchimento
+                int currentRow = 2;
+                int colValue = 6;
+                int colScore = 7;
+                foreach (var item in statementResponse.SpendingDataList.OrderByDescending(x => x.Category))
+                {
+                    worksheet.Cells[currentRow, 1].Value = item.Date;
+                    worksheet.Cells[currentRow, 2].Value = item.Bank;
+                    worksheet.Cells[currentRow, 3].Value = item.Subject;
+                    worksheet.Cells[currentRow, 4].Value = item.Category;
+                    worksheet.Cells[currentRow, 5].Value = item.CategoryOwner;
+                    worksheet.Cells[currentRow, colValue].Value = Math.Abs(item.Value);
+                    worksheet.Cells[currentRow, colScore].Value = item.Score;
+                    #region Interacao com IA
+                    worksheet.Cells[currentRow, 8].Value = item.SourceRule; // "Local" ou "IA"
+                    var confCell = worksheet.Cells[currentRow, 9];
+                    if
+                        (item.ConfidenceLevel.HasValue)
+                    {
+                        confCell.Value = item.ConfidenceLevel.Value;
+                        confCell.Style.Numberformat.Format = "0%";
+                        if (item.ProcessedByIA && item.ConfidenceLevel < 0.6)
+                            confCell.Style.Font.Color.SetColor(Color.OrangeRed);
+                    }
+                    worksheet.Cells[currentRow, 10].Value = item.IAExplanation;
+                    #endregion Interacao com IA
+                    //Rastreabilidade
+                    worksheet.Cells[currentRow, 11].Value = item.IsCredit;
+                    worksheet.Cells[currentRow, 12].Value = (int)item.FinancialType;
+                    ApplyLegacyFormatting(worksheet, currentRow, item);
+                    currentRow++;
+                }
+                // 3. Ajustes de Layout
+                var lastRow = currentRow - 1;
+                // Formatação da Coluna de Valor (E)
+                var valueCol = worksheet.Cells[2, colValue, lastRow, colValue];
+                valueCol.Style.Numberformat.Format = "#,##0.00";
+                // Ajuste de largura
+                worksheet.Cells[1, 1, lastRow, 10].AutoFitColumns();
+                // Ajuste manual (Justificativa) para evitar que estique demais
+                worksheet.Column(10).Width = 70;
+                worksheet.Column(10).Style.WrapText = false;
+                worksheet.Column(10).Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Top;
+                package.Save();
+            }
+            return statementResponse;
+        }
+        public async Task<StatementResponse> CreateFinalExcelAsync(IFormFile file)
+        {
+            var statementResponse = new StatementResponse();
+            #region 01.Carrega o arquivo enviado para a memória
+            await file.CopyToAsync(stream);
+            stream.Position = 0; // Reset fundamental para leitura
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            using (var package = new ExcelPackage(stream))
+            {
+                if (package.Workbook.Worksheets.Count == 0) return null;
+                var worksheet = package.Workbook.Worksheets[0];
+                var rowCount = worksheet.Dimension?.Rows ?? 0;
+                for (int row = 2; row <= rowCount; row++)
+                {
+                    var dateVal = worksheet.Cells[row, 1].Value;
+                    var amountVal = worksheet.Cells[row, 6].Value;
+                    var confidentVal = worksheet.Cells[row, 9].Value;
+                    if (dateVal != null && amountVal != null)
+                    {
+                        //01 Date
+                        //02 Bank
+                        //03 Subject
+                        //04 Category
+                        //05 CategoryType
+                        //06 Value
+                        //07 Score
+                        //------------------
+                        //08 SourceRule
+                        //09 ConfidenceLevel
+                        //10 IAExplanation
+                        //------------------
+                        //11 IsCredit
+                        //12 FinancialType
+                        statementResponse.SpendingDataList.Add(new SpendingData
+                        {
+                            Date = Convert.ToDateTime(dateVal).ToShortDateString(),                                  // 01
+                            Bank = worksheet.Cells[row, 2].Text,                                                     // 02
+                            Subject = worksheet.Cells[row, 3].Text,                                                  // 03
+                            Category = worksheet.Cells[row, 4].Text,                                                 // 04
+                            CategoryOwner = worksheet.Cells[row, 5].Text,                                            // 05
+                            Value = Convert.ToDecimal(amountVal),                                                    // 06
+                            Score = worksheet.Cells[row, 7].Text,                                                    // 07
+                            //--------------------------------------------------------------------------------------------
+                            SourceRule = worksheet.Cells[row, 8].Text,                                               // 08
+                            ConfidenceLevel = confidentVal != null ? (double?)Convert.ToDouble(confidentVal) : null, // 09
+                            IAExplanation = worksheet.Cells[row, 10].Text,                                           // 10
+                            IsCredit = Convert.ToBoolean(worksheet.Cells[row, 11].Value),                            // 11
+                            FinancialType = (FinancialType)Convert.ToInt32(worksheet.Cells[row, 12].Value),          // 12
+                        });
+                    }
+                }
+            }
+            #endregion 01.Carrega o arquivo enviado para a memória
+            #region 02. Escreve o novo arquivo
+            statementResponse.FilePath = Path.Combine(_fullPath, CreateXlsArchiveName("final", statementResponse.SpendingDataList));
+            FileInfo fileInfo = new FileInfo(statementResponse.FilePath);
+            if (!PrepareXlsEnviroment(fileInfo)) return null;
+            if (fileInfo.Exists) fileInfo.Delete();
+            using (var outputPackage = new ExcelPackage(fileInfo))
+            {
+                ExcelWorksheet outSheet = outputPackage.Workbook.Worksheets.Add("Resumo de Gastos");
+                var groupedData = statementResponse.SpendingDataList
+                                                   .OrderBy(x => x.Category)
+                                                   .ThenBy(x => x.Date)
+                                                   .GroupBy(x => x.Category);
+                int currentRow = 1;
+                foreach (var group in groupedData)
+                {
+                    // 2. LINHA DE TÍTULO DO GRUPO (SEÇÃO)
+                    FinalXls_CreateHeader(outSheet, currentRow, group.Key?.ToUpper());
+                    currentRow++;
+                    // Guardamos a linha onde começam os dados para a fórmula de soma
+                    int startRow = currentRow;
+                    // 3. DADOS DO GRUPO
+                    foreach (var item in group)
+                    {
+                        outSheet.Cells[currentRow, 1].Value = item.Date;
+                        outSheet.Cells[currentRow, 2].Value = item.Bank;
+                        outSheet.Cells[currentRow, 3].Value = item.Subject;
+                        outSheet.Cells[currentRow, 4].Value = item.Category;
+                        outSheet.Cells[currentRow, 5].Value = item.CategoryOwner;
+                        //---------------------------------------------------------
+                        outSheet.Cells[currentRow, COL_VALUE].Value = Math.Abs(item.Value);
+                        outSheet.Cells[currentRow, COL_SCORE].Value = item.Score;
+                        //ApplyLegacyFormatting(outSheet, currentRow, item);
+                        currentRow++;
+                    }
+                    FinalXls_CreateGroupSumary(outSheet, startRow, currentRow);
+                    currentRow += 2;
+                }
+                // Ajustes finais
+                outSheet.Cells.AutoFitColumns();
+                outSheet.Column(COL_VALUE).Width = 15; // Garante espaço para o valor
+                //outSheet.View.FreezePanes(2, 1);
+                // Força o cálculo das fórmulas antes de gerar o arquivo/byte array
+                outputPackage.Workbook.Calculate();
+                await outputPackage.SaveAsync();
+                byte[] bin = await outputPackage.GetAsByteArrayAsync();
+                statementResponse.FileBase64 = Convert.ToBase64String(bin);
+            }
+            #endregion 02. Escreve o novo arquivo
+            #region 03. Recalcula os totais
+            _financialDashboarService.GerateDashboardTotals(statementResponse);
+            #endregion 03. Recalcula os totais
+            return statementResponse;
+        }
+        #endregion Criação dos XLS
+        #region Helpers
+        private void FinalXls_CreateHeader(ExcelWorksheet outSheet, int actualRow, string title)
+        {
+            string[] headers = { "", "", title, "", "", "", "" };
+            if (actualRow == 1)
+            {
+                //                           01        02     03           04      05       06       07
+                headers = new string[] { "DATA", "ORIGEM", title, "CATEGORIA", "DONO", "VALOR", "SCORE" };
+            }
+            for (int col = 0; col < headers.Length; col++)
+            {
+                var cell = outSheet.Cells[actualRow, col + 1];
+                cell.Value = headers[col];
+                cell.Style.Font.Bold = true;
+                cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                cell.Style.Fill.BackgroundColor.SetColor(Color.Black);
+                cell.Style.Font.Color.SetColor(Color.White);
+                switch (col)
+                {
+                    case 1: cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Left; break;   // Data
+                    case 2: cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Left; break;   // Origem
+                    case 3: cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Left; break;   // Título do Grupo (Categoria)
+                    case 4: cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Left; break;   // Categoria
+                    case 5: cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Right; break;  // CategoriaDono
+                    case 6: cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Right; break;  // Valor
+                    case 7: cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Right; break;  // Score
+                }
+            }
+        }
+        private void FinalXls_CreateGroupSumary(ExcelWorksheet outSheet, int startRow, int currentRow)
+        {
+            //                  01  02      03   04  05  06  07
+            string[] sumary = { "", "", "TOTAL", "", "", "", "" };
+            for (int col = 0; col < sumary.Length; col++)
+            {
+                var cell = outSheet.Cells[currentRow, col + 1];
+                cell.Value = sumary[col];
+                cell.Style.Font.Bold = true;
+                cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                cell.Style.Fill.BackgroundColor.SetColor(Color.Black);
+                cell.Style.Font.Color.SetColor(Color.White);
+                cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Left;
+            }
+            // Inserindo a fórmula SUM dinamicamente
+            // currentRow - 1 é a última linha de dados do grupo (era 5, currentRow - 1)
+            var sumRange = outSheet.Cells[startRow, COL_VALUE, currentRow - 1, COL_VALUE].Address;
+            outSheet.Cells[currentRow, COL_VALUE].Formula = $"SUM({sumRange})";
+            outSheet.Cells[currentRow, COL_VALUE].Style.Numberformat.Format = "#,##0.00";
+            outSheet.Cells[currentRow, COL_VALUE].Style.HorizontalAlignment = ExcelHorizontalAlignment.Right;
+        }
+        private void ApplyLegacyFormatting(ExcelWorksheet worksheet, int row, SpendingData item)
+        {
+            var scoreCell = worksheet.Cells[row, COL_SCORE];
+            scoreCell.Style.Font.Bold = true;
+            switch (item.Score?.ToUpper())
+            {
+                case "ALTO": scoreCell.Style.Font.Color.SetColor(Color.Red); break;
+                case "MÉDIO": scoreCell.Style.Font.Color.SetColor(Color.Orange); break;
+                case "BAIXO": scoreCell.Style.Font.Color.SetColor(Color.Gray); break;
+            }
+            worksheet.Cells[row, COL_VALUE].Style.Font.Color.SetColor(item.IsCredit ? Color.Green : Color.Red);
+        }
+        private bool PrepareXlsEnviroment(FileInfo fileInfo)
+        {
+            try
+            {
+                // 2. Criamos o diretório se necessário
+                if (!Directory.Exists(_fullPath))
+                {
+                    Directory.CreateDirectory(_fullPath);
+                    return true;
+                }
+                else
+                {
+                    // 4. Agora sim podemos usar o fileInfo para checar e deletar
+                    DirectoryInfo directory = new DirectoryInfo(_fullPath);
+                    foreach (FileInfo file in directory.GetFiles())
+                    {
+                        try
+                        {
+                            file.Delete();
+                        }
+                        catch (IOException)
+                        {
+                            // O arquivo está aberto ou travado.
+                            // Ignoramos para não quebrar a execução atual.
+                        }
+                    }
+                }
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+        private string CreateXlsArchiveName(String prefix, List<SpendingData> spendingDataList)
+        {
+            // 1. Ordenação cronológica aceitando hífens ou barras
+            string[] formats = { "dd/MM/yyyy", "dd-MM-yyyy" };
+            var earliestTransaction = spendingDataList
+                .OrderBy(x =>
+                {
+                    // Tentamos primeiro com barra, se falhar, tentamos com hífen
+                    return DateTime.ParseExact(x.Date, formats, CultureInfo.InvariantCulture, DateTimeStyles.None);
+                })
+                .FirstOrDefault();
+            if (earliestTransaction != null)
+            {
+                var dateRef = earliestTransaction.Date;
+                var bankRef = earliestTransaction.Bank ?? "Desconhecido";
+                if (DateTime.TryParseExact(dateRef, formats, CultureInfo.InvariantCulture,
+                                           DateTimeStyles.None, out DateTime dateTimeArchive))
+                {
+                    // Ajuste de competência para o Banco do Brasil
+                    if (bankRef == "BB")
+                    {
+                        dateTimeArchive = dateTimeArchive.AddMonths(1);
+                    }
+                    // Retorno com string interpolada mais limpa e extensão correta
+                    return $"{prefix}-Extrato-{dateTimeArchive.Month:00}-{dateTimeArchive.ToString("MMMM").ToUpper()}-{dateTimeArchive.Year}.xlsx";
+                }
+            }
+            return "00-MONTH.xlsx";
+        }
+        #endregion Helpers
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\Interface\ICsvExtractor.cs
+USINGS: Microsoft.AspNetCore.Http, Server_API.Domain.Service.ProcessStatementService.Enum, Server_API.Domain.Service.ProcessStatementService.Model
+==================================================
+public interface ICsvExtractor
+{
+    Task<List<RawBankDetails>> ExtractAsync(IFormFile file, BankType bankType);
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\Interface\IExpenseService.cs
+USINGS: Microsoft.AspNetCore.Http, Server.Api.Domain.Service.ProcessStatementService.Model
+==================================================
+public interface IExpenseService
+{
+    // Usado pelo Orquestrador
+    Task<List<Expense>> GetAll();
+    // Usado pelo Controller para centralizar o I/O
+    Task SaveFileAsync(IFormFile file);
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\Interface\IFinancialDashboardService.cs
+USINGS: Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel
+==================================================
+namespace Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface
+{
+    public interface IFinancialDashboardService
+    {
+        void GerateDashboardTotals(StatementResponse processedData);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\Interface\IFinancialIntelligenceService.cs
+USINGS: Server.Api.Domain.Service.ProcessStatementService.Model, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel
+==================================================
+namespace Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface
+{
+    public interface IFinancialIntelligenceService
+    {
+        StatementResponse AnalyzeSpending(List<SpendingData> extractedTransactions, List<Expense> expenses);
+        Task<List<SpendingData>> AnalyzeSpendingUsingIAAsync(List<SpendingData> spendingList, CancellationToken ct = default);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\Interface\IStatementMapperService.cs
+USINGS: Server.Api.Domain.Service.ProcessStatementService.Model
+==================================================
+namespace Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract.Interface
+{
+    public interface IStatementMapperService
+    {
+        /// Converte a lista de dados brutos para o modelo de domínio SpendingData.
+        List<SpendingData> MapToSpendingData(List<TransactionModel> transactionModels);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\Interface\IStatementService.cs
+USINGS: Microsoft.AspNetCore.Http, Server.Api.Domain.Service.ProcessStatementService.Model
+==================================================
+namespace Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface
+{
+    public interface IStatementService
+    {
+        /// Processa uma lista de arquivos de extrato, identifica o banco de origem
+        /// e retorna uma lista unificada de transações.
+        Lista de arquivos enviados via multipart/form-data</param>
+        Uma lista padronizada de objetos TransactionModel</returns>
+        Task<List<TransactionModel>> ProcessCsvFilesAsync(List<IFormFile> files);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\Interface\IStatementXlsService.cs
+USINGS: Microsoft.AspNetCore.Http, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel
+==================================================
+namespace Server.Api.Domain.Service.InfrastrutureService.Interface
+{
+    public interface IStatementXlsService
+    {
+        /// Gera um arquivo Excel formatado a partir dos dados processados.
+        Caminho completo onde o arquivo será salvo.</param>
+        Objeto contendo a lista de transações e o dashboard.</param>
+        O caminho do arquivo gerado em caso de sucesso.</returns>
+        Task<StatementResponse> CreatePreFormatedExcelAsync(StatementResponse statementResponse);
+        Task<StatementResponse> CreateFinalExcelAsync(IFormFile file);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Tests\ControllerTests.cs
+USINGS: Microsoft.AspNetCore.Mvc, Microsoft.Extensions.Logging, Moq, Server.Api.Controllers, Server.Api.Domain.Model, Server.Api.Domain.Service.InfrastrutureService.Interface
+==================================================
+namespace Server.Api.Tests
+{
+    public class ControllerTests
+    {
+        private readonly Mock<IEncryptionService> _encryptionServiceMock;
+        private readonly Mock<ILogger<ClipboardController>> _loggerMock;
+        private readonly ClipboardController _controller;
+        public ControllerTests()
+        {
+            _encryptionServiceMock = new Mock<IEncryptionService>();
+            _loggerMock = new Mock<ILogger<ClipboardController>>();
+            _controller = new ClipboardController(_encryptionServiceMock.Object, _loggerMock.Object);
+        }
+        //---------------------------------------------------------------------------
+        //Basic tests
+        //---------------------------------------------------------------------------
+        [Fact]
+        public async Task PostClipBoard_ShouldEncryptContent()
+        {
+            // Arrange
+            var transmition = new Transmition { Content = "test content" };
+            _encryptionServiceMock.Setup(c => c.Encrypt(It.IsAny<string>())).Returns("encrypted content");
+            // Act
+            var result = await _controller.PostClipBoard(transmition);
+            // Assert
+            var okResult = Assert.IsType<OkResult>(result);
+            _encryptionServiceMock.Verify(c => c.Encrypt("test content"), Times.Once);
+        }
+        [Fact]
+        public async Task GetClipBoard_ShouldReturnDecryptedContent()
+        {
+            // Arrange
+            _encryptionServiceMock.Setup(c => c.Decrypt(It.IsAny<string>())).Returns("decrypted content");
+            await _controller.PostClipBoard(new Transmition { Content = "test content" });
+            // Act
+            var result = await _controller.GetClipBoard();
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var clipboardResponse = Assert.IsType<ClipboardResponse>(okResult.Value);
+            Assert.Equal("decrypted content", clipboardResponse.Clipboard);
+            _encryptionServiceMock.Verify(c => c.Decrypt(It.IsAny<string>()), Times.Once);
+        }
+        [Fact]
+        public async Task GetClipBoard_ShouldReturnEmptyClipboardResponseIfNoData()
+        {
+            // Act
+            var result = await _controller.GetClipBoard();
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var clipboardResponse = Assert.IsType<ClipboardResponse>(okResult.Value);
+            Assert.Null(clipboardResponse.Clipboard);
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Tests\StatementControllerTest.cs
+USINGS: Core.HttpHandleResults.Responses, Microsoft.AspNetCore.Http, Microsoft.AspNetCore.Mvc, Moq, Server.Api.Controllers, Server.Api.Domain.Service.InfrastrutureService.Interface, Server.Api.Domain.Service.ProcessStatementService.Interface, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel, System.Text
+==================================================
+namespace Server.Api.Tests
+{
+    public class StatementControllerTests
+    {
+        private readonly Mock<IStatementOrchestratorService> _orchestratorMock;
+        private readonly Mock<IExpenseService> _expenseServiceMock;
+        private readonly Mock<IStatementXlsService> _xlsServiceMock;
+        private readonly StatementController _controller;
+        public StatementControllerTests()
+        {
+            _orchestratorMock = new Mock<IStatementOrchestratorService>();
+            _expenseServiceMock = new Mock<IExpenseService>();
+            _xlsServiceMock = new Mock<IStatementXlsService>();
+            // Resolvendo o erro CS7036: Passando os 3 parâmetros requeridos
+            _controller = new StatementController(
+                _orchestratorMock.Object,
+                _expenseServiceMock.Object,
+                _xlsServiceMock.Object);
+        }
+        [Fact]
+        public async Task ProcessCsv_ShouldReturnBadRequest_WhenNoFilesSent()
+        {
+            // Act
+            var result = await _controller.ProcessCsv(new List<IFormFile>());
+            // Assert
+            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+            var envelope = Assert.IsType<GenericResponseEnvelope<StatementResponse>>(badRequestResult.Value);
+            Assert.False(envelope.IsSuccess);
+            Assert.Equal("NO_FILES", envelope.ErrorCode);
+        }
+        [Fact]
+        public async Task UploadExpenses_ShouldReturnOk_WhenFileIsValid()
+        {
+            // Arrange
+            var content = "date,description,amount\n2026-03-20,Test,100";
+            var fileName = "expenses.csv";
+            var stream = new MemoryStream(Encoding.UTF8.GetBytes(content));
+            // Criando o FormFile corretamente para evitar erros de parâmetro
+            var file = new FormFile(stream, 0, stream.Length, "file", fileName)
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "text/csv"
+            };
+            _expenseServiceMock.Setup(s => s.SaveFileAsync(It.IsAny<IFormFile>()))
+                               .Returns(Task.CompletedTask);
+            // Act
+            var result = await _controller.UploadExpenses(file);
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var envelope = Assert.IsType<GenericResponseEnvelope<string>>(okResult.Value);
+            Assert.True(envelope.IsSuccess);
+            _expenseServiceMock.Verify(s => s.SaveFileAsync(It.IsAny<IFormFile>()), Times.Once);
+        }
+        [Fact]
+        public async Task ProcessXls_ShouldReturnOk_WhenFileIsValid()
+        {
+            // Arrange
+            var stream = new MemoryStream(Encoding.UTF8.GetBytes("fake excel content"));
+            var file = new FormFile(stream, 0, stream.Length, "file", "test.xlsx");
+            var expectedResponse = new StatementResponse(); // Ajuste se houver construtor específico
+            _xlsServiceMock.Setup(s => s.CreateFinalExcelAsync(It.IsAny<IFormFile>()))
+                           .ReturnsAsync(expectedResponse);
+            // Act
+            var result = await _controller.ProcessXls(file);
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var envelope = Assert.IsType<GenericResponseEnvelope<StatementResponse>>(okResult.Value);
+            Assert.True(envelope.IsSuccess);
+            Assert.Equal("Extratos processados com sucesso.", envelope.Message);
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Program.cs
+USINGS: Blazored.LocalStorage, Microsoft.AspNetCore.HttpOverrides, Microsoft.AspNetCore.Localization, NLog.Extensions.Logging, Server.Web.Components, Server.Web.Service.Interface, Server.Web.Services.Interfaces, System.Globalization
+==================================================
+var builder = WebApplication.CreateBuilder(args);
+#region 1. Configurações de Infraestrutura (Logging e Kestrel)
+builder.Logging.AddNLog();
+var configuration = builder.Configuration;
+// Recuperação de valores do AppSettings
+var apiBaseAddress = configuration["ConnectionSettings:ApiBaseAddress"]
+    ?? throw new InvalidOperationException("ApiBaseAddress não configurado.");
+var bindPort = int.Parse(configuration["ConnectionSettings:BindPort"] ?? "5021");
+// Configuração do servidor Kestrel
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(bindPort);
+});
+// Suporte para Web Assets estáticos em ambiente de produção
+if (!builder.Environment.IsDevelopment())
+{
+    builder.WebHost.UseStaticWebAssets();
+}
+#endregion 1. Configurações de Infraestrutura (Logging e Kestrel)
+#region 2. Injeção de Dependências (Services)
+// Componentes do Razor e Interactive Server
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+// Configuração de limites para SignalR (upload de arquivos)
+builder.Services.Configure<Microsoft.AspNetCore.SignalR.HubOptions>(options =>
+{
+    options.MaximumReceiveMessageSize = 20 * 1024 * 1024; // 20MB
+});
+// Registro do HttpClient para comunicação com a API Backend
+builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(apiBaseAddress) });
+// Registro dos Serviços de Aplicação (Padronizados com Interface)
+builder.Services.AddScoped<IFileService, FileService>();
+builder.Services.AddScoped<IFinancialService, FinancialService>();
+builder.Services.AddScoped<IAlertService, AlertService>();
+// Bibliotecas de terceiros
+builder.Services.AddBlazoredLocalStorage();
+#endregion 2. Injeção de Dependências (Services)
+var app = builder.Build();
+#region 3. Pipeline de Requisições HTTP (Middlewares)
+// Configuração de Localização (pt-BR)
+var supportedCultures = new[] { new CultureInfo("pt-BR") };
+app.UseRequestLocalization(new RequestLocalizationOptions
+{
+    DefaultRequestCulture = new RequestCulture("pt-BR"),
+    SupportedCultures = supportedCultures,
+    SupportedUICultures = supportedCultures
+});
+// Ajuste global de cultura para Threads
+CultureInfo.DefaultThreadCurrentCulture = supportedCultures[0];
+CultureInfo.DefaultThreadCurrentUICulture = supportedCultures[0];
+// Tratamento de Erros e Segurança em Produção
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    app.UseHsts();
+}
+// Headers de Proxy (necessário para Nginx/Docker)
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseAntiforgery();
+// Mapeamento dos Componentes Blazor
+app.MapRazorComponents<App>()
+   .AddInteractiveServerRenderMode();
+#endregion 3. Pipeline de Requisições HTTP (Middlewares)
+app.Run();
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Components\Pages\BankStatementPage.razor.cs
+USINGS: Microsoft.AspNetCore.Components, Microsoft.AspNetCore.Components.Forms, ServerBB_Web.Service.Interface, ServerBB_Web.Service.Model, System.Text.Json, var ms = new MemoryStream(), var ms = new MemoryStream()
+==================================================
+namespace ServerBB_Web.Components.Pages;
+public partial class BankStatementPage : ComponentBase
+{
+    // Injeta HttpClient para comunicação com sua API backend
+    [Inject] protected HttpClient HttpClient { get; set; } = default!;
+    // Serviço JSInterop que você já usa para baixar arquivos no browser
+    [Inject] protected IFileService FileService { get; set; } = default!;
+    // ===== Dados exibidos no Dashboard =====
+    // Esses valores serão preenchidos após o processamento do extrato
+    protected decimal SuperMarket { get; set; }
+    protected decimal Pharmacy { get; set; }
+    protected decimal TotalDebit { get; set; }
+    protected decimal TotalCredit { get; set; }
+    // ===== Controle de mensagens na tela =====
+    protected string UploadMessage { get; set; } = string.Empty; // Texto exibido ao usuário
+    protected string AlertClass { get; set; } = "alert-info";    // Classe CSS do alerta
+    protected bool ShowMessage { get; set; }                     // Controla visibilidade
+    // Limite máximo do tamanho de arquivo permitido
+    // Blazor exige esse controle por segurança
+    private const long MaxFileSize = 20 * 1024 * 1024; // 20MB
+    // ==========================================================
+    // PROCESSAMENTO DO EXTRATO BANCÁRIO
+    // ==========================================================
+    protected async Task ProcessStatementUpload(IReadOnlyList<IBrowserFile> files)
+    {
+        // Proteção contra chamada sem arquivos
+        if (files == null || files.Count == 0)
+            return;
+        try
+        {
+            // Multipart é necessário para enviar arquivos via HTTP
+            var content = new MultipartFormDataContent();
+            // Permite upload de múltiplos arquivos
+            foreach (var file in files)
+            {
+                // Copiamos o arquivo do browser para memória
+                await file.OpenReadStream(MaxFileSize).CopyToAsync(ms);
+                // Reseta posição do stream para leitura
+                ms.Seek(0, SeekOrigin.Begin);
+                // Adiciona o arquivo ao request HTTP
+                content.Add(
+                    new StreamContent(new MemoryStream(ms.ToArray())),
+                    "files",
+                    file.Name);
+            }
+            // Envia os arquivos para API
+            var responseUpload =
+                await HttpClient.PostAsync("api/bb/uploadStatement", content);
+            // Se falhar upload, interrompe fluxo
+            if (!responseUpload.IsSuccessStatusCode)
+            {
+                await SetUploadMessageAsync("Erro upload extrato", "alert-danger");
+                return;
+            }
+            // Após upload, chama endpoint que processa e devolve resultado
+            var responseDownload =
+                await HttpClient.GetAsync("api/bb/multiPartProcessFile");
+            if (!responseDownload.IsSuccessStatusCode)
+            {
+                await SetUploadMessageAsync("Erro processamento extrato", "alert-danger");
+                return;
+            }
+            // Recebe JSON com resultados do processamento
+            var json = await responseDownload.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<MultiPartResponse>(
+                json,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            if (result == null)
+            {
+                await SetUploadMessageAsync("Resposta inválida do servidor", "alert-danger");
+                return;
+            }
+            // Atualiza valores exibidos no dashboard
+            SuperMarket = result.SuperMarket;
+            Pharmacy = result.Pharmacy;
+            TotalDebit = result.TotalDebit;
+            TotalCredit = result.TotalCredit;
+            // Baixa o XLS gerado pela API
+            await FileService.DownloadFileByteAsync(
+                result.FileName,
+                result.FileContent);
+            await SetUploadMessageAsync("Extrato processado", "alert-success");
+        }
+        catch (Exception)
+        {
+            await SetUploadMessageAsync("Erro inesperado no processamento", "alert-danger");
+        }
+    }
+    // ==========================================================
+    // PROCESSAMENTO DO CSV DE DESPESAS FIXAS
+    // ==========================================================
+    protected async Task ProcessExpenseUpload(IReadOnlyList<IBrowserFile> files)
+    {
+        if (files == null || files.Count == 0)
+            return;
+        try
+        {
+            // Aqui você aceita apenas 1 arquivo
+            var file = files.First();
+            await file.OpenReadStream(MaxFileSize).CopyToAsync(ms);
+            ms.Seek(0, SeekOrigin.Begin);
+            var content = new MultipartFormDataContent();
+            content.Add(
+                new StreamContent(new MemoryStream(ms.ToArray())),
+                "file",
+                file.Name);
+            var response =
+                await HttpClient.PostAsync("api/bb/uploadExpenses", content);
+            if (response.IsSuccessStatusCode)
+                await SetUploadMessageAsync("Despesas enviadas", "alert-success");
+            else
+                await SetUploadMessageAsync("Erro envio despesas", "alert-danger");
+        }
+        catch (Exception)
+        {
+            await SetUploadMessageAsync("Erro inesperado no envio", "alert-danger");
+        }
+    }
+    // ==========================================================
+    // MÉTODO RESPONSÁVEL POR MOSTRAR ALERTAS NA UI
+    // ==========================================================
+    private async Task SetUploadMessageAsync(string message, string css)
+    {
+        UploadMessage = message;
+        AlertClass = css;
+        ShowMessage = true;
+        // Força atualização da tela
+        StateHasChanged();
+        // Mantém mensagem visível por 3 segundos
+        await Task.Delay(3000);
+        ShowMessage = false;
+        // Atualiza novamente a UI
+        StateHasChanged();
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Components\Pages\StatementOrchestratorPage.razor.cs
+USINGS: Microsoft.AspNetCore.Components, Microsoft.AspNetCore.Components.Forms, Server.Web.Service.Interface, Server.Web.Services.Interfaces, Server.Web.Services.Models.GroupedModel
+==================================================
+namespace Server.Web.Components.Pages;
+public partial class StatementOrchestratorPage : ComponentBase
+{
+    [Inject] protected IFinancialService FinancialService { get; set; } = default!;
+    [Inject] protected IFileService FileService { get; set; } = default!;
+    [Inject] protected IAlertService AlertService { get; set; } = default!;
+    protected StatementResult statementResult { get; set; } = new();
+    private const long MaxFileSize = 20 * 1024 * 1024; // 20MB
+    #region Gerenciamento do TAB
+    private string activeTab = "main"; // "main" ou "debug"
+    private void ChangeTab(string tabName)
+    {
+        activeTab = tabName;
+    }
+    #endregion Gerenciamento do TAB
+    #region Upload
+    protected async Task ProcessStatementUpload(IReadOnlyList<IBrowserFile> files)
+    {
+        if (files == null || !files.Any()) return;
+        try
+        {
+            // 1. Prepara o conteúdo para o envio
+            var content = await CreateMultipartContent(files, "files");
+            var result = await FinancialService.ProcessStatementAsync<StatementResult>(content);
+            // 3. Agora a variável 'result' existe e pode ser verificada
+            if (result.IsSuccess && result.Value != null)
+            {
+                UpdateDashboard(result.Value);
+                AlertService.NotifyChanged();
+                // Conversão do conteúdo para download
+                var fileBytes = Convert.FromBase64String(result.Value.FileBase64);
+                var fileName = Path.GetFileName(result.Value.FilePath);
+                await FileService.DownloadFileByteAsync(fileName, fileBytes);
+                await AlertService.Show("Extrato processado com sucesso!", "alert-success");
+            }
+            else
+            {
+                // Caso o processamento retorne erros de negócio
+                await AlertService.Show(result, "alert-danger");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Captura falhas de comunicação ou erros inesperados
+            await AlertService.Show($"Erro crítico: {ex.Message}", "alert-danger");
+        }
+    }
+    protected async Task ProcessExpenseUpload(IReadOnlyList<IBrowserFile> files)
+    {
+        if (files == null || !files.Any()) return;
+        try
+        {
+            var content = await CreateMultipartContent(files, "file");
+            var result = await FinancialService.UploadExpensesAsync<string>(content);
+            if (result.IsSuccess)
+            {
+                // Coesão máxima: a mensagem exibida é a que o Back-end enviou dentro do envelope
+                await AlertService.Show(result.Message, "alert-success");
+            }
+            else
+            {
+                await AlertService.Show(result.Message ?? "Erro ao processar", "alert-danger");
+            }
+        }
+        catch (Exception ex)
+        {
+            await AlertService.Show($"Erro no envio: {ex.Message}", "alert-danger");
+        }
+    }
+    protected async Task ProcessExcelUpload(IReadOnlyList<IBrowserFile> files)
+    {
+        if (files == null || !files.Any()) return;
+        try
+        {
+            var content = await CreateMultipartContent(files, "file");
+            var result = await FinancialService.UploadExcelAsync<StatementResult>(content);
+            // 3. Agora a variável 'result' existe e pode ser verificada
+            if (result.IsSuccess && result.Value != null)
+            {
+                UpdateDashboard(result.Value);
+                // Conversão do conteúdo para download
+                var fileBytes = Convert.FromBase64String(result.Value.FileBase64);
+                var fileName = Path.GetFileName(result.Value.FilePath);
+                await FileService.DownloadFileByteAsync(fileName, fileBytes);
+                await AlertService.Show("Extrato processado com sucesso!", "alert-success");
+            }
+            else
+            {
+                // Caso o processamento retorne erros de negócio
+                await AlertService.Show(result, "alert-danger");
+            }
+        }
+        catch (Exception ex)
+        {
+            await AlertService.Show($"Erro no envio: {ex.Message}", "alert-danger");
+        }
+    }
+    private async Task<MultipartFormDataContent> CreateMultipartContent(IReadOnlyList<IBrowserFile> files, string name)
+    {
+        var content = new MultipartFormDataContent();
+        foreach (var file in files)
+        {
+            var ms = new MemoryStream();
+            await file.OpenReadStream(MaxFileSize).CopyToAsync(ms);
+            ms.Position = 0;
+            content.Add(new StreamContent(ms), name, file.Name);
+        }
+        return content;
+    }
+    #endregion Upload
+    #region Dashboard
+    private void UpdateDashboard(StatementResult data)
+    {
+        // Atualiza a variável que está vinculada ao componente visual no HTML
+        this.statementResult = data;
+    }
+    #endregion Dashboard
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Components\Shared\CsvUploadComponent.razor.cs
+USINGS: Microsoft.AspNetCore.Components, Microsoft.AspNetCore.Components.Forms
+==================================================
+namespace ServerBB_Web.Components.Shared
+{
+    public partial class CsvUploadComponent
+    {
+        [Parameter] public string Label { get; set; } = "Upload CSV";
+        [Parameter] public bool Multiple { get; set; }
+        [Parameter]
+        public EventCallback<IReadOnlyList<IBrowserFile>> OnFilesSelected { get; set; }
+        private List<string> _fileNames = new();
+        private async Task HandleFilesSelected(InputFileChangeEventArgs e)
+        {
+            var files = Multiple
+                ? e.GetMultipleFiles()
+                : new List<IBrowserFile> { e.File };
+            _fileNames = files.Select(f => f.Name).ToList();
+            await OnFilesSelected.InvokeAsync(files);
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Components\Shared\ErrorSimulatorComponent.razor.cs
+USINGS: Microsoft.AspNetCore.Components
+==================================================
+namespace Server.Web.Components.Shared;
+public partial class ErrorSimulatorComponent : ComponentBase
+{
+    [Inject]
+    protected HttpClient Http { get; set; }
+    protected string ResponseJson { get; set; } = string.Empty;
+    protected string LastStatusCode { get; set; } = "---";
+    protected async Task CallEndpoint(string endpoint)
+    {
+        ResponseJson = "Aguardando resposta do servidor...";
+        try
+        {
+            // Realiza a chamada manual para capturar o HttpResponseMessage completo
+            var response = await Http.GetAsync($"api/ErrorTest/{endpoint}");
+            LastStatusCode = $"{(int)response.StatusCode} {response.StatusCode}";
+            // Captura o corpo da resposta (JSON do Middleware)
+            var content = await response.Content.ReadAsStringAsync();
+            // Atribui o conteúdo bruto para exibição no componente
+            ResponseJson = content;
+        }
+        catch (HttpRequestException ex)
+        {
+            ResponseJson = $"Erro de requisição: {ex.Message}";
+            LastStatusCode = "Falha de Conexão";
+        }
+        catch (Exception ex)
+        {
+            ResponseJson = $"Erro inesperado: {ex.Message}";
+            LastStatusCode = "Erro Interno";
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Components\Shared\FinancialDashboardComponent.razor.cs
+USINGS: Microsoft.AspNetCore.Components, Server.Web.Services.Models.GroupedModel
+==================================================
+namespace Server.Web.Components.Shared;
+public partial class FinancialDashboardComponent : ComponentBase
+{
+    [Parameter]
+    public FinancialDashboard Data { get; set; } = new();
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Components\Shared\UploadExcelComponent.razor.cs
+USINGS: Microsoft.AspNetCore.Components, Microsoft.AspNetCore.Components.Forms, Server.Web.Services.Interfaces
+==================================================
+namespace Server.Web.Components.Shared;
+public partial class UploadExcelComponent : ComponentBase
+{
+    [Inject]
+    protected IAlertService AlertService { get; set; } = default!;
+    protected IReadOnlyList<IBrowserFile> files;
+    // O IsLoading permanece para controlar o estado do botão
+    protected bool IsLoading { get; set; } = false;
+    [Parameter]
+    public EventCallback<IReadOnlyList<IBrowserFile>> OnUpload { get; set; }
+    protected void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        files = e.GetMultipleFiles();
+        StateHasChanged();
+    }
+    protected async Task Upload()
+    {
+        if (files != null && !IsLoading)
+        {
+            try
+            {
+                IsLoading = true;
+                // Utilizamos o padrão de mensagem informativa do seu AlertService
+                // Note: Se você implementou o ShowLoading sem timer, use-o aqui.
+                // Caso contrário, usamos o Show padrão com um tempo longo.
+                await AlertService.Show("Processando Xls Pré formatado... Por favor, aguarde.", "alert-info");
+                // Notifica o componente pai
+                await OnUpload.InvokeAsync(files);
+            }
+            catch (Exception)
+            {
+                await AlertService.Show("Erro ao processar o Xls pré formatado.", "alert-danger");
+            }
+            finally
+            {
+                IsLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Components\Shared\UploadExpenseComponent.razor.cs
+USINGS: Microsoft.AspNetCore.Components, Microsoft.AspNetCore.Components.Forms, Server.Web.Services.Interfaces
+==================================================
+namespace Server.Web.Components.Shared;
+public partial class UploadExpenseComponent : ComponentBase
+{
+    [Inject]
+    protected IAlertService AlertService { get; set; } = default!;
+    protected IReadOnlyList<IBrowserFile> files;
+    // O IsLoading permanece para controlar o estado do botão
+    protected bool IsLoading { get; set; } = false;
+    [Parameter]
+    public EventCallback<IReadOnlyList<IBrowserFile>> OnUpload { get; set; }
+    protected void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        files = e.GetMultipleFiles();
+        StateHasChanged();
+    }
+    protected async Task Upload()
+    {
+        if (files != null && !IsLoading)
+        {
+            try
+            {
+                IsLoading = true;
+                // Utilizamos o padrão de mensagem informativa do seu AlertService
+                // Note: Se você implementou o ShowLoading sem timer, use-o aqui.
+                // Caso contrário, usamos o Show padrão com um tempo longo.
+                await AlertService.Show("Processando lista de despesas... Por favor, aguarde.", "alert-info");
+                // Notifica o componente pai
+                await OnUpload.InvokeAsync(files);
+            }
+            catch (Exception)
+            {
+                await AlertService.Show("Erro ao processar a lista de despesas.", "alert-danger");
+            }
+            finally
+            {
+                IsLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Components\Shared\UploadStatementComponent.razor.cs
+USINGS: Microsoft.AspNetCore.Components, Microsoft.AspNetCore.Components.Forms, Server.Web.Services.Interfaces
+==================================================
+namespace Server.Web.Components.Shared;
+public partial class UploadStatementComponent : ComponentBase
+{
+    [Inject]
+    protected IAlertService AlertService { get; set; } = default!;
+    protected IReadOnlyList<IBrowserFile> files;
+    protected bool IsLoading { get; set; } = false;
+    [Parameter]
+    public EventCallback<IReadOnlyList<IBrowserFile>> OnUpload { get; set; }
+    protected void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        files = e.GetMultipleFiles();
+        StateHasChanged();
+    }
+    protected async Task Upload()
+    {
+        if (files != null && !IsLoading)
+        {
+            try
+            {
+                IsLoading = true;
+                // Usamos o novo método sem timer para o carregamento
+                AlertService.ShowLoading("Consultando Inteligência Artificial... Por favor, aguarde.");
+                // O InvokeAsync chama o orquestrador que retorna o StatementResponse
+                // Supondo que o retorno do OnUpload seja capturado no componente pai
+                await OnUpload.InvokeAsync(files);
+                // O componente pai provavelmente chamará o AlertService.Show(result, "alert-success")
+                // após o retorno da API, o que naturalmente sobrescreverá o alerta de loading.
+            }
+            catch (Exception)
+            {
+                await AlertService.Show("Ocorreu um erro inesperado ao enviar os arquivos.", "alert-danger");
+            }
+            finally
+            {
+                IsLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Components\Shared\UXMessageComponent.razor.cs
+USINGS: Microsoft.AspNetCore.Components, Server.Web.Services.Interfaces
+==================================================
+namespace Server.Web.Components.Shared;
+public partial class UXMessageComponent : ComponentBase, IDisposable
+{
+    [Inject]
+    protected IAlertService AlertService { get; set; } = default!;
+    protected override void OnInitialized()
+    {
+        // Subscreve ao evento utilizando um mediador que garante a atualização da UI
+        AlertService.OnChange += NotifyStateChanged;
+    }
+    private async void NotifyStateChanged()
+    {
+        // O InvokeAsync é fundamental para garantir que a re-renderização
+        // ocorra na thread correta da interface.
+        await InvokeAsync(StateHasChanged);
+    }
+    public void Dispose()
+    {
+        AlertService.OnChange -= NotifyStateChanged;
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Infraestructure\BaseHttpClient.cs
+USINGS: Core.HttpHandleResults.Responses
+==================================================
+namespace Server.Web.Infrastructure
+{
+    public abstract class BaseHttpClient
+    {
+        protected readonly HttpClient _http;
+        protected BaseHttpClient(HttpClient http)
+        {
+            _http = http;
+        }
+        /// Processa a resposta da API esperando sempre um GenericResponseEnvelope padronizado.
+        protected async Task<GenericResponseEnvelope<T>> HandleResponse<T>(HttpResponseMessage response)
+        {
+            try
+            {
+                // Se a resposta for sucesso (200-299), lemos o envelope completo do Back-end.
+                // O T aqui representa o tipo do campo 'Value' dentro do envelope.
+                if (response.IsSuccessStatusCode)
+                {
+                    var envelope = await response.Content.ReadFromJsonAsync<GenericResponseEnvelope<T>>();
+                    return envelope ?? GenericResponseEnvelope<T>.Failure("O servidor retornou um corpo vazio.");
+                }
+                // Se houver erro de negócio ou exceção tratada (ex: 400, 404, 500),
+                // o Back-end também enviará um GenericResponseEnvelope<T> preenchido com as falhas.
+                var errorEnvelope = await response.Content.ReadFromJsonAsync<GenericResponseEnvelope<T>>();
+                return errorEnvelope ?? GenericResponseEnvelope<T>.Failure("Erro desconhecido ao processar a requisição.");
+            }
+            catch (Exception ex)
+            {
+                // Fallback para falhas críticas de infraestrutura (ex: JSON malformado ou timeout)
+                return GenericResponseEnvelope<T>.Failure(
+                    $"Erro de comunicação: {ex.Message}",
+                    "HTTP_COMMUNICATION_ERROR"
+                );
+            }
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Services\FinancialService.cs
+USINGS: Core.HttpHandleResults.Responses, Server.Web.Infrastructure, Server.Web.Services.Interfaces
+==================================================
+public class FinancialService : BaseHttpClient, IFinancialService
+{
+    public FinancialService(HttpClient http) : base(http)
+    {
+    }
+    /// Realiza o upload e o processamento do extrato em uma única operação.
+    public async Task<GenericResponseEnvelope<T>> ProcessStatementAsync<T>(MultipartFormDataContent content)
+    {
+        // Agora utilizamos a rota consolidada e a chamada única.
+        // O retorno do PostAsync já contém o JSON do StatementResponse.
+        var response = await _http.PostAsync("api/statement/processCsv", content);
+        return await HandleResponse<T>(response);
+    }
+    public async Task<GenericResponseEnvelope<T>> UploadExcelAsync<T>(MultipartFormDataContent content)
+    {
+        // Atualizado para a nova rota semântica, se o backend também mudou para api/statement
+        var response = await _http.PostAsync("api/statement/processXls", content);
+        return await HandleResponse<T>(response);
+    }
+    public async Task<GenericResponseEnvelope<T>> UploadExpensesAsync<T>(MultipartFormDataContent content)
+    {
+        // Atualizado para a nova rota semântica, se o backend também mudou para api/statement
+        var response = await _http.PostAsync("api/statement/uploadExpenses", content);
+        return await HandleResponse<T>(response);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Services\Enum\FinancialType.cs
+USINGS: 
+==================================================
+namespace Server.Web.Services.Enum
+{
+    /// Define as categorias financeiras para o processamento de extratos.
+    public enum FinancialType
+    {
+        Ignore = 0,
+        ExtraDebit = 1,
+        SupermarketDebit = 2,
+        PharmacyDebit = 3,
+        UnknownCredit = 4,
+        UnknownDebit = 5
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Services\Implementations\Alert\AlertService.cs
+USINGS: Core.HttpHandleResults.Responses, Server.Web.Services.Interfaces
+==================================================
+public class AlertService : IAlertService
+{
+    public string Message { get; private set; } = string.Empty;
+    public string CssClass { get; private set; } = "alert-info";
+    public bool IsVisible { get; private set; }
+    public event Action? OnChange;
+    // Ajustado para receber o objeto OperationResult diretamente
+    // Alteramos para aceitar qualquer tipo de OperationResult<T>
+    public async Task Show<T>(GenericResponseEnvelope<T> result, string css)
+    {
+        if (result.Errors != null && result.Errors.Any())
+        {
+            Message = string.Join(Environment.NewLine, result.Errors);
+        }
+        else if (!result.IsSuccess)
+        {
+            Message = result.Message ?? "Ocorreu um erro desconhecido.";
+        }
+        else
+        {
+            // Se for um sucesso e não houver mensagem específica, definimos um padrão
+            Message = "Operação realizada com sucesso!";
+        }
+        CssClass = css;
+        IsVisible = true;
+        NotifyStateChanged();
+        await Task.Delay(1000);
+        IsVisible = false;
+        NotifyStateChanged();
+    }
+    // Mantemos o overload para mensagens simples
+    public async Task Show(string message, string css)
+    {
+        Message = message;
+        CssClass = css;
+        IsVisible = true;
+        NotifyStateChanged();
+        await Task.Delay(1000);
+        IsVisible = false;
+        NotifyStateChanged();
+    }
+    public async void NotifyChanged()
+    {
+        Message = "Atualizando...";
+        CssClass = "alert-info";
+        IsVisible = true;
+        NotifyStateChanged();
+        await Task.Delay(1000);
+        IsVisible = false;
+        NotifyStateChanged();
+    }
+    #region Mensagem de processamento
+    public void ShowLoading(string message)
+    {
+        Message = message;
+        CssClass = "alert-info"; // Ou uma classe específica para loading
+        IsVisible = true;
+        NotifyStateChanged();
+        // Note que não há Task.Delay e nem IsVisible = false aqui
+    }
+    public void Hide()
+    {
+        IsVisible = false;
+        NotifyStateChanged();
+    }
+    #endregion Mensagem de processamento
+    #region Helper
+    private void NotifyStateChanged() => OnChange?.Invoke();
+    #endregion Helper
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Services\Implementations\Download\FileDownloadService.cs
+USINGS: Microsoft.JSInterop, Server.Web.Service.Interface
+==================================================
+namespace Server.Web.Services.Implementations.Download
+{
+    public class FileDownloadService : IFileDownloadService
+    {
+        private readonly IJSRuntime _jsRuntime;
+        public FileDownloadService(IJSRuntime jsRuntime)
+        {
+            _jsRuntime = jsRuntime;
+        }
+        public async Task DownloadFile(string url, string fileName)
+        {
+            await _jsRuntime.InvokeVoidAsync("downloadService.downloadFile", url, fileName);
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Services\Implementations\Download\FileService.cs
+USINGS: Microsoft.JSInterop, Server.Web.Service.Interface
+==================================================
+public class FileService : IFileService, IAsyncDisposable
+{
+    private readonly IJSRuntime _jsRuntime;
+    private IJSObjectReference? _module;
+    public FileService(IJSRuntime jsRuntime)
+    {
+        _jsRuntime = jsRuntime;
+    }
+    public async Task DownloadFileByteAsync(string fileName, byte[] fileBytes)
+    {
+        // Carrega o módulo JavaScript isolado (Lazy Loading)
+        _module ??= await _jsRuntime.InvokeAsync<IJSObjectReference>("import", "./javascript/downloadModule.js");
+        string base64String = Convert.ToBase64String(fileBytes);
+        // Invoca a função exportada do arquivo .js
+        await _module.InvokeVoidAsync("downloadFileFromBytes", fileName, base64String);
+    }
+    // Implementação do descarte assíncrono para liberar o módulo JS da memória
+    public async ValueTask DisposeAsync()
+    {
+        if (_module != null)
+        {
+            await _module.DisposeAsync();
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Services\Interfaces\IAlert.cs
+USINGS: Core.HttpHandleResults.Responses
+==================================================
+namespace Server.Web.Services.Interfaces
+{
+    public interface IAlertService
+    {
+        // Contrato para os dados que a UI vai consumir
+        string Message { get; }
+        string CssClass { get; }
+        bool IsVisible { get; }
+        // Contrato para o evento de notificação
+        event Action? OnChange;
+        // Contrato para a ação de exibir o alerta
+        Task Show<T>(GenericResponseEnvelope<T> result, string css);
+        Task Show(string message, string css);
+        void ShowLoading(string message);
+        void NotifyChanged();
+        void Hide();
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Services\Interfaces\IFileDownloadService.cs
+USINGS: 
+==================================================
+namespace Server.Web.Service.Interface
+{
+    public interface IFileDownloadService
+    {
+        Task DownloadFile(string url, string fileName);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Services\Interfaces\IFileService.cs
+USINGS: 
+==================================================
+namespace Server.Web.Service.Interface
+{
+    public interface IFileService
+    {
+        /// Realiza o download de um arquivo no lado do cliente a partir de um array de bytes.
+        Nome do arquivo com extensão.</param>
+        Conteúdo binário do arquivo.</param>
+        Task DownloadFileByteAsync(string fileName, byte[] fileBytes);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Services\Interfaces\IFinancialService.cs.cs
+USINGS: Core.HttpHandleResults.Responses
+==================================================
+namespace Server.Web.Services.Interfaces
+{
+    public interface IFinancialService
+    {
+        Task<GenericResponseEnvelope<T>> ProcessStatementAsync<T>(MultipartFormDataContent content);
+        Task<GenericResponseEnvelope<T>> UploadExpensesAsync<T>(MultipartFormDataContent content);
+        Task<GenericResponseEnvelope<T>> UploadExcelAsync<T>(MultipartFormDataContent content);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Services\Models\GroupedModel\FinancialDashboard.cs
+USINGS: 
+==================================================
+namespace Server.Web.Services.Models.GroupedModel
+{
+    public class FinancialDashboard
+    {
+        public decimal TotalDebit { get; set; }
+        public decimal TotalCredit { get; set; }
+        public decimal Supermarket { get; set; }
+        public decimal Pharmacy { get; set; }
+        public decimal Extra { get; set; }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Services\Models\GroupedModel\SpendingData.cs
+USINGS: Server.Web.Services.Enum
+==================================================
+namespace Server.Web.Services.Models.GroupedModel
+{
+    public class SpendingData
+    {
+        public string? Date { get; set; }
+        public string? Subject { get; set; }
+        public decimal Value { get; set; }
+        //----------------------------------------
+        public bool IsCredit { get; set; }
+        public FinancialType FinancialType { get; set; }
+        public string? Owner { get; set; }
+        public string? Bank { get; set; }
+        public string? Score { get; set; }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Web.Solution\Server.Web\Services\Models\GroupedModel\StatementResult.cs
+USINGS: 
+==================================================
+namespace Server.Web.Services.Models.GroupedModel
+{
+    public class StatementResult
+    {
+        public StatementResult()
+        {
+            // Garante que os objetos internos não sejam nulos
+            SpendingDataList = new List<SpendingData>();
+            Dashboard = new FinancialDashboard();
+            FilePath = string.Empty;
+        }
+        public List<SpendingData> SpendingDataList { get; set; }
+        public FinancialDashboard Dashboard { get; set; }
+        public string FilePath { get; set; }
+        public string FileBase64 { get; set; }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.AI.Contracts\Interfaces\IFinancialAiAnalyst.cs
+USINGS: Core.AI.Contracts.Models
+==================================================
+namespace Core.AI.Contracts.Interfaces
+{
+    /// Define as capacidades do Analista Financeiro baseado em IA.
+    /// Esta abstração permite que a infraestrutura seja trocada (ex: Ollama por Azure OpenAI)
+    /// sem alterar a lógica de negócio na camada Core.
+    public interface IFinancialAiAnalyst
+    {
+        /// Processa a descrição de uma única transação para extrair significado semântico.
+        O texto bruto vindo do extrato bancário.</param>
+        Permite interromper a tarefa caso demore muito,
+        /// o que é crítico ao rodar em hardware com limitações térmicas.</param>
+        Um resultado de análise estruturado.</returns>
+        Task<TransactionAnalysisResult> AnalyzeTransactionAsync(
+            string description,
+            CancellationToken cancellationToken = default);
+        /// Processa múltiplas transações em uma única sessão.
+        /// O processamento em lote (batch) costuma ser mais eficiente para o LLM do que várias chamadas individuais.
+        Uma coleção de descrições de transações.</param>
+        Padrão recomendado para operações assíncronas.</param>
+        Uma coleção de resultados de análise mapeados para as entradas.</returns>
+        Task<IEnumerable<TransactionAnalysisResult>> AnalyzeTransactionBatchAsync(
+            IEnumerable<string> descriptions,
+            CancellationToken cancellationToken = default);
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.AI.Contracts\Models\TransactionAnalysisResult.cs
+USINGS: 
+==================================================
+namespace Core.AI.Contracts.Models
+{
+    /// Representa o resultado estruturado de uma análise financeira feita por IA.
+    /// O uso de um DTO garante que o restante da aplicação não dependa do
+    /// formato de texto bruto (string) retornado pelo modelo de linguagem.
+    public class TransactionAnalysisResult
+    {
+        /// A categoria identificada pela IA (ex: 'Transporte', 'Alimentação', 'Lazer').
+        public string SuggestedCategory { get; set; } = string.Empty;
+        /// Um valor de 0.0 a 1.0 que indica o quão confiante a IA está nesta classificação.
+        /// Útil para sinalizar resultados de baixa confiança que exijam revisão manual.
+        public double ConfidenceLevel { get; set; }
+        /// Uma breve explicação do porquê a IA escolheu esta categoria.
+        /// Auxilia o desenvolvedor e o usuário a entenderem a lógica do modelo.
+        public string Reasoning { get; set; } = string.Empty;
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.AI.Infrastructure\Configurations\AiPromptsConfiguration.cs
+USINGS: 
+==================================================
+namespace Core.AI.Infrastructure.Configurations
+{
+    public static class AiPromptsConfiguration
+    {
+        /// Prompt base para análise de transações financeiras.
+        // No AiPromptsConfiguration.cs
+        public const string FinancialAnalystSystemPrompt = @"Você é um analista financeiro rigoroso.
+                                                             Analise as transações enviadas e responda APENAS com um ARRAY de objetos JSON.
+                                                             Exemplo de formato esperado:
+                                                             [
+                                                                { ""suggestedCategory"": ""Saúde"", ""confidenceLevel"": 0.9, ""reasoning"": ""Drogasil identificado"" },
+                                                                { ""suggestedCategory"": ""Transporte"", ""confidenceLevel"": 0.8, ""reasoning"": ""Uber identificado"" }
+                                                             ]
+                                                             Não use markdown, não explique nada.";
+        // Adicione ourtros prompts aqui...
+        // public const string RiskAnalystPrompt = "...";
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.AI.Infrastructure\Services\GeminiFinancialAnalyst.cs
+USINGS: Core.AI.Contracts.Interfaces, Core.AI.Contracts.Models, Core.AI.Infrastructure.Configurations, System.Text, System.Text.Json, var doc = JsonDocument.Parse(rawJson)
+==================================================
+namespace Core.AI.Infrastructure.Services
+{
+    public class GeminiFinancialAnalyst : IFinancialAiAnalyst
+    {
+        private readonly HttpClient _httpClient;
+        private readonly string _apiKey;
+        // Tente esta URL exata. O sufixo ":generateContent" é obrigatório.
+        private const string ApiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+        public GeminiFinancialAnalyst(string apiKey)
+        {
+            _apiKey = apiKey;
+            _httpClient = new HttpClient();
+        }
+        public async Task<TransactionAnalysisResult> AnalyzeTransactionAsync(string description, CancellationToken ct = default)
+        {
+            var results = await AnalyzeTransactionBatchAsync(new[] { description }, ct);
+            return results.FirstOrDefault() ?? throw new Exception("Gemini falhou em retornar um resultado.");
+        }
+        public async Task<IEnumerable<TransactionAnalysisResult>> AnalyzeTransactionBatchAsync(IEnumerable<string> descriptions, CancellationToken ct = default)
+        {
+            var promptFull = $"{AiPromptsConfiguration.FinancialAnalystSystemPrompt}\n\nTransações: {string.Join(", ", descriptions)}";
+            var payload = new
+            {
+                contents = new[]
+                {
+            new
+            {
+                parts = new[]
+                {
+                    new { text = promptFull }
+                }
+            }
+        },
+                generationConfig = new
+                {
+                    temperature = 0.2,
+                    // Remova temporariamente o response_mime_type para isolar o problema do 404
+                }
+            };
+            var jsonPayload = JsonSerializer.Serialize(payload);
+            // Verifique se não há espaços na _apiKey vinda do appsettings
+            var response = await _httpClient.PostAsync($"{ApiUrl}?key={_apiKey.Trim()}",
+                new StringContent(jsonPayload, Encoding.UTF8, "application/json"), ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorDetail = await response.Content.ReadAsStringAsync(ct);
+                throw new Exception($"Erro na API do Gemini: {response.StatusCode} - {errorDetail}");
+            }
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
+            return ParseGeminiResponse(responseBody);
+        }
+        private IEnumerable<TransactionAnalysisResult> ParseGeminiResponse(string rawJson)
+        {
+            var textResult = doc.RootElement
+                .GetProperty("candidates")[0]
+                .GetProperty("content")
+                .GetProperty("parts")[0]
+                .GetProperty("text").GetString();
+            if (string.IsNullOrWhiteSpace(textResult))
+                return new List<TransactionAnalysisResult>();
+            // Limpeza de possíveis blocos de código Markdown
+            var cleanedJson = textResult.Trim();
+            if (cleanedJson.StartsWith("```json"))
+                cleanedJson = cleanedJson.Replace("```json", "").Replace("```", "").Trim();
+            else if (cleanedJson.StartsWith("```"))
+                cleanedJson = cleanedJson.Replace("```", "").Trim();
+            return JsonSerializer.Deserialize<List<TransactionAnalysisResult>>(cleanedJson, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }) ?? new List<TransactionAnalysisResult>();
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.AI.Infrastructure\Services\OllamaFinancialAnalyst.cs
+USINGS: Core.AI.Contracts.Interfaces, Core.AI.Contracts.Models, Core.AI.Infrastructure.Configurations, Docker.DotNet, Docker.DotNet.Models, OllamaSharp, OllamaSharp.Models, System.Text.Json, System.Text.RegularExpressions
+==================================================
+namespace Core.AI.Infrastructure.Services
+{
+    /// Implementação do analista financeiro que orquestra o Docker e o Ollama.
+    /// Esta classe é a "realização" do contrato definido em Core.AI.Contracts.
+    public class OllamaFinancialAnalyst : IFinancialAiAnalyst
+    {
+        private readonly DockerClient _dockerClient;
+        private readonly IOllamaApiClient _ollamaClient;
+        private const string ContainerName = "ollama";
+        /// O construtor recebe as configurações necessárias para os clientes externos.
+        Endereço da API do Docker (ex: npipe://./pipe/docker_engine no Windows).</param>
+        Endereço da API do Ollama (ex: http://localhost:11434).</param>
+        public OllamaFinancialAnalyst(Uri dockerUri, Uri ollamaUri)
+        {
+            _dockerClient = new DockerClientConfiguration(dockerUri).CreateClient();
+            _ollamaClient = new OllamaApiClient(ollamaUri);
+        }
+        /// Analisa uma transação utilizando o modelo Phi-3 Mini e gerencia o ciclo de vida do container.
+        public async Task<TransactionAnalysisResult> AnalyzeTransactionAsync(string description, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // 01. Acorda a I.A no dokers
+                await StartContainerAsync(cancellationToken);
+                #region AI Model Interaction
+                _ollamaClient.SelectedModel = "phi3:mini";
+                // 02. Envia a requisição para o Ollama
+                var request = new GenerateRequest
+                {
+                    Model = _ollamaClient.SelectedModel,                          // Passamos o modelo diretamente no contrato da requisição
+                    System = AiPromptsConfiguration.FinancialAnalystSystemPrompt, // Prompt de sistema para orientar o comportamento da IA
+                    Prompt = $"Transação: {description}",
+                    Stream = false,
+                    Options = new OllamaSharp.Models.RequestOptions               // Opcional: para ajustes finos de temperatura
+                    {
+                        Temperature = 0.3f                                        // Menor temperatura = resposta mais determinística/rígida
+                    }
+                };
+                // 03. Recupera a resposta do modelo (streaming ou completa)
+                var responseStream = _ollamaClient.GenerateAsync(request, cancellationToken);
+                string responseText = string.Empty;
+                await foreach (var item in responseStream.WithCancellation(cancellationToken))
+                {
+                    if (item != null && !string.IsNullOrEmpty(item.Response))
+                    {
+                        responseText += item.Response;
+                    }
+                }
+                var result = new { Response = responseText };
+                // 04. Limpeza da resposta (Remove possíveis blocos de código markdown)
+                string cleanJson = CleanJsonResponse(result.Response);
+                // 05. Desserialização para o DTO
+                var analysis = JsonSerializer.Deserialize<TransactionAnalysisResult>(cleanJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                #endregion AI Model Interaction
+                return analysis ?? throw new Exception("A IA retornou um resultado vazio.");
+            }
+            catch (JsonException ex)
+            {
+                throw new Exception($"Erro ao interpretar o JSON da IA. Conteúdo bruto: {ex.Message}", ex);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Falha na infraestrutura de IA: {ex.Message}", ex);
+            }
+            finally
+            {
+                // 06. Coloca a I.A no dokers para dormir (garante resfrimento)
+                await StopContainerAsync();
+            }
+        }
+        /// Analisa uma transações em lote utilizando o modelo Phi-3 Mini e gerencia o ciclo de vida do container.
+        public async Task<IEnumerable<TransactionAnalysisResult>> AnalyzeTransactionBatchAsync(IEnumerable<string> descriptions, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // 01. Acorda a I.A uma única vez para o lote inteiro
+                await StartContainerAsync(cancellationToken);
+                // Prepara o prompt com a lista de transações
+                // Usamos Join para criar uma string numerada, facilitando para a IA
+                var formattedDescriptions = string.Join("\n", descriptions.Select((d, i) => $"{i + 1}. {d}"));
+                var batchPrompt = $@"Analise as seguintes transações e retorne um ARRAY de JSON: Transações: {formattedDescriptions}";
+                var request = new GenerateRequest
+                {
+                    Model = "phi3:mini",
+                    System = AiPromptsConfiguration.FinancialAnalystSystemPrompt +
+                             "\nRetorne um JSON array seguindo o esqueleto, um para cada transação na ordem enviada.",
+                    Prompt = batchPrompt,
+                    Stream = false,
+                    Options = new OllamaSharp.Models.RequestOptions { Temperature = 0.2f }
+                };
+                // 02. Envia a requisição única
+                var responseText = "";
+                await foreach (var item in _ollamaClient.GenerateAsync(request, cancellationToken))
+                {
+                    responseText += item.Response;
+                }
+                // 03. Limpeza e Desserialização de uma lista
+                string cleanJson = CleanJsonResponse(responseText);
+                var results = JsonSerializer.Deserialize<List<TransactionAnalysisResult>>(cleanJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                return results ?? new List<TransactionAnalysisResult>();
+            }
+            finally
+            {
+                // 04. Coloca a I.A para dormir após processar tudo
+                await StopContainerAsync();
+            }
+        }
+        #region Helpers
+        /// Método auxiliar para extrair apenas o JSON, caso a IA envie markdown ou textos extras.
+        private string CleanJsonResponse(string response)
+        {
+            // Procura por conteúdo entre chaves { } caso a IA envie lixo ao redor
+            var match = Regex.Match(response, @"\{.*\}", RegexOptions.Singleline);
+            return match.Success ? match.Value : response;
+        }
+        private async Task StartContainerAsync(CancellationToken ct)
+        {
+            // Nota de Estudo: Aqui o DockerClient verifica o estado atual do container
+            // antes de tentar dar o Start, evitando exceções desnecessárias.
+            await _dockerClient.Containers.StartContainerAsync(ContainerName, new ContainerStartParameters(), ct);
+        }
+        private async Task StopContainerAsync()
+        {
+            // Envia o sinal de parada para o container 'ollama'.
+            await _dockerClient.Containers.StopContainerAsync(ContainerName, new ContainerStopParameters { WaitBeforeKillSeconds = 5 });
+        }
+        #endregion Helpers
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.HttpHandleResult\Comon\GenericResponseEnvelope.cs
+USINGS: 
+==================================================
+namespace Core.HttpHandleResults.Responses {
+    public class GenericResponseEnvelope<T>
+{
+    public bool IsSuccess { get; set; }
+    public string Message { get; set; } // Mensagem universal (Sucesso ou Erro)
+    public T? Value { get; set; }       // Dados opcionais (pode ser null)
+    public string? ErrorCode { get; set; }
+    public IEnumerable<string>? Errors { get; set; }
+    // Construtor vazio para serialização
+    public GenericResponseEnvelope()
+    { }
+    // Fábrica para Sucesso (com ou sem dados)
+    public static GenericResponseEnvelope<T> Success(string message, T? value = default)
+        => new()
+        {
+            IsSuccess = true,
+            Message = message,
+            Value = value
+        };
+    // Fábrica para Falha
+    public static GenericResponseEnvelope<T> Failure(string message, string? errorCode = null, IEnumerable<string>? errors = null)
+        => new()
+        {
+            IsSuccess = false,
+            Message = message,
+            ErrorCode = errorCode,
+            Errors = errors
+        };
+}
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.HttpHandleResult\Middlewares\GlobalExceptionMiddleware.cs
+USINGS: Core.HttpHandleResults.Responses, Microsoft.AspNetCore.Http, Microsoft.Extensions.Hosting, Microsoft.Extensions.Logging, System.Net, System.Text.Json
+==================================================
+namespace Core.Infrastructure.Middlewares
+{
+    /// Middleware global para captura de exceções.
+    /// Funciona como uma malha de segurança que envolve toda a aplicação.
+    public class GlobalExceptionMiddleware
+    {
+        // O 'RequestDelegate' representa o próximo componente no fluxo (pipeline) da requisição.
+        private readonly RequestDelegate _next;
+        // Interface para registrar logs no console ou arquivos, essencial para auditoria de erros.
+        private readonly ILogger<GlobalExceptionMiddleware> _logger;
+        // Permite verificar o ambiente (Desenvolvimento, Produção, etc.) para decidir o que exibir.
+        private readonly IHostEnvironment _env;
+        public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger, IHostEnvironment env)
+        {
+            _next = next;
+            _logger = logger;
+            _env = env;
+        }
+        /// Método obrigatório do middleware que é chamado em cada requisição HTTP.
+        public async Task InvokeAsync(HttpContext context)
+        {
+            try
+            {
+                // Tenta passar a requisição adiante para o próximo middleware (ou Controller).
+                await _next(context);
+            }
+            catch (Exception ex)
+            {
+                // Se qualquer erro não tratado ocorrer "acima" no fluxo, ele cairá aqui.
+                _logger.LogError(ex, "Ocorreu um erro não tratado detectado pelo Middleware Global.");
+                // Inicia o processo de transformar a exceção técnica em uma resposta JSON amigável.
+                await HandleExceptionAsync(context, ex);
+            }
+        }
+        /// Constrói a resposta de erro padronizada no formato JSON.
+        private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+        {
+            // Define que o retorno será um JSON e o Status Code será 500 (Erro Interno).
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+            // Criamos o nosso envelope de erro (Contrato de Interface).
+            var response = new GenericApiErrorResponse
+            {
+                Title = "Erro Interno de Servidor",
+                Message = "Ocorreu um erro inesperado em nosso sistema. Por favor, tente novamente mais tarde.",
+                ErrorCode = "INTERNAL_SERVER_ERROR",
+                // O TraceId ajuda a rastrear esta requisição específica nos logs do servidor.
+                TraceId = context.TraceIdentifier,
+                // Segurança: O detalhe técnico (StackTrace) só é enviado se estivermos em ambiente de Desenvolvimento.
+                // Em Produção, o valor será nulo para não expor vulnerabilidades do código.
+                TechnicalDetail = _env.IsDevelopment() ? exception.ToString() : null
+            };
+            // Serializa o objeto para uma string JSON.
+            var json = JsonSerializer.Serialize(response);
+            // Escreve o JSON diretamente no corpo da resposta HTTP.
+            await context.Response.WriteAsync(json);
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.HttpHandleResult\Responses\GenericApiErrorResponse.cs
+USINGS: 
+==================================================
+namespace Core.HttpHandleResults.Responses
+{
+    /// Modelo padrão para respostas de erro da API.
+    /// Este é o JSON que o Front-end receberá em caso de falha.
+    public class GenericApiErrorResponse
+    {
+        public bool Success { get; } = false; // Sempre falso neste objeto
+        public string Title { get; set; }     // Ex: "Erro de Regra de Negócio" ou "Erro Interno"
+        public string Message { get; set; }   // Mensagem amigável para o usuário
+        public string ErrorCode { get; set; } // Código estável para o Front-end (ex: VAL_001)
+        public string TraceId { get; set; }    // Para rastreamento em logs (opcional, mas profissional)
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        // Lista para quando houver múltiplos erros (ex: validação de vários campos)
+        public List<string> Errors { get; set; } = new List<string>();
+        // Detalhes técnicos (preenchido apenas em desenvolvimento pelo Middleware)
+        public string TechnicalDetail { get; set; }
+    }
+}
+
+
+

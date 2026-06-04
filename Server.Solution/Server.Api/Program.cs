@@ -87,12 +87,11 @@ builder.Services.AddScoped<IStatementXlsService>(sp =>
 #endregion 03. Injeção de dependencia com Factory
 
 #region 04. Injecao de Dependência para Analista Financeiro de IA
-
 // Adiciona o arquivo de segredos à configuração
 builder.Configuration.AddJsonFile("appsettings.Secrets.json", optional: true, reloadOnChange: true);
 
 // 1. Recuperamos as configurações do appsettings.json
-var aiProvider = builder.Configuration["AiSettings:Provider"]; // "Ollama" ou "Gemini"
+var aiProvider = builder.Configuration["AiSettings:Provider"];
 
 if (aiProvider == "Gemini")
 {
@@ -100,19 +99,25 @@ if (aiProvider == "Gemini")
     builder.Services.AddScoped<IFinancialAiAnalyst>(sp =>
         new GeminiFinancialAnalyst(apiKey));
 }
+else if (aiProvider == "DeepSeekLocal")
+{
+    var deepSeekUri = new Uri(builder.Configuration["AiSettings:DeepSeekUri"] ?? "http://localhost:11434");
+    var modelName = builder.Configuration["AiSettings:DeepSeekModel"] ?? "deepseek-r1:8b";
+
+    builder.Services.AddScoped<IFinancialAiAnalyst>(sp =>
+        new DeepSeekFinancialAnalyst(deepSeekUri, modelName));
+}
 else
 {
-    // Configuração padrão para o Ollama Local
+    // Configuração padrão para o Ollama Local gerenciado via Docker
     var dockerUri = new Uri(builder.Configuration["AiSettings:DockerUri"] ?? "npipe://./pipe/docker_engine");
     var ollamaUri = new Uri(builder.Configuration["AiSettings:OllamaUri"] ?? "http://localhost:11434");
-
     builder.Services.AddScoped<IFinancialAiAnalyst>(sp =>
         new OllamaFinancialAnalyst(dockerUri, ollamaUri));
 }
 
 // 2. Registramos o serviço de domínio que orquestra a inteligência
 builder.Services.AddScoped<IFinancialIntelligenceService, FinancialIntelligenceService>();
-
 #endregion 04. Injecao de Dependência para Analista Financeiro de IA
 
 #region 05. Configurações de Controladores e JSON
