@@ -1,6 +1,6 @@
 ﻿using Core.AI.Contracts.Interfaces;
 using Core.AI.Infrastructure.Services;
-using Core.Infrastructure.Middlewares;
+using Core.HttpHandleResults.Middlewares;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.OpenApi.Models;

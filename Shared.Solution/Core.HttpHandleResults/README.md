@@ -1,4 +1,4 @@
-﻿# Documentação Técnica: Core.Infrastructure
+﻿# Documentação Técnica: Core.HttpHandleResults
 
 Este projeto centraliza a base arquitetural para tratamento de fluxos, erros e respostas padronizadas da solução. O objetivo principal é garantir previsibilidade para o Front-end e robustez para o Back-end.
 
@@ -9,7 +9,7 @@ Este projeto centraliza a base arquitetural para tratamento de fluxos, erros e r
 Em vez de utilizarmos exceções para controlar regras de negócio (o que é custoso e desorganizado), utilizamos a classe genérica `OperationResult<T>`.
 
 ### Estrutura da Classe: `OperationResult<T>`
-Localizada em: `Core.Infrastructure.Common`
+Localizada em: `Core.HttpHandleResults.Common`
 
 - **IsSuccess**: Booleano que indica o estado da operação.
 - **Value**: Objeto de retorno (apenas em caso de sucesso).
@@ -82,7 +82,7 @@ JSON
   "TechnicalDetail": "Detalhes técnicos (apenas em Desenvolvimento)"
 }
 5. Como configurar no Projeto Web (API)
-Adicione a referência do projeto Core.Infrastructure.
+Adicione a referência do projeto Core.HttpHandleResults.
 
 No arquivo Program.cs, registre o middleware logo após o builder.Build():
 

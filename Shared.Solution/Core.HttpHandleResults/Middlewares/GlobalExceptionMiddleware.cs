@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text.Json;
 
-namespace Core.Infrastructure.Middlewares
+namespace Core.HttpHandleResults.Middlewares
 {
     /// <summary>
     /// Middleware global para captura de exceções.
