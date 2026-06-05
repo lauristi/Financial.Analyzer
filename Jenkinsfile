@@ -5,30 +5,33 @@ pipeline {
         API_NAME = 'financial-api'
         WEB_NAME = 'financial-web'
         PROJECT_LABEL = 'financial-analyzer'
-        // Definimos a porta como vari�vel para facilitar manuten��o
+        // Definimos a porta como variável para facilitar manutenção
         API_PORT = '5020'
     }
 
     stages {
         stage('01- Checkout') {
             steps {
-                // Baixa o c�digo do reposit�rio
+                // Baixa o código do repositório principal
                 checkout scm
+            
+                // Inicializa e atualiza os submódulos de forma recursiva
+                sh 'git submodule update --init --recursive'
             }
         }
 
         stage('02- Build & Deploy API') {
             steps {
                 script {
-                    // 1. Build da imagem: O ponto (.) indica que o contexto � a raiz
+                    // 1. Build da imagem: O ponto (.) indica que o contexto é a raiz
                     sh "docker build --no-cache -t ${API_NAME}:latest -f Dockerfile ."
                     
-                    // 2. Parada e remo��o segura do container anterior
-                    // O '|| true' evita que o Jenkins falhe se o container n�o existir
+                    // 2. Parada e remoção segura do container anterior
+                    // O '|| true' evita que o Jenkins falhe se o container não existir
                     sh "docker stop ${API_NAME} || true && docker rm ${API_NAME} || true"
                     
-                    // 3. Execu��o do novo container
-                    // Note que mantivemos o label para integra��o com o Portainer
+                    // 3. Execução do novo container
+                    // Note que mantivemos o label para integração com o Portainer
                     sh """
                         docker run -d \
                         --name ${API_NAME} \
@@ -44,7 +47,7 @@ pipeline {
             }
         }
 
-       stage('03- Build & Deploy Web') {
+        stage('03- Build & Deploy Web') {
             steps {
                 script {
                     // Gera a imagem do Frontend
@@ -63,7 +66,7 @@ pipeline {
 
     post {
         always {
-            // Limpa o workspace para n�o ocupar espa�o em disco no servidor Jenkins
+            // Limpa o workspace para não ocupar espaço em disco no servidor Jenkins
             cleanWs()
         }
         success {
