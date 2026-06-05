@@ -27,7 +27,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Shared.Solution\Core.AI.Contracts\Core.AI.Contracts.csproj" />
+    <ProjectReference Include="..\..\Shared.Solution\Core.Ai.Agent\Core.Ai.Agent.csproj" />
+    <ProjectReference Include="..\..\Shared.Solution\Core.HttpHandleResults\Core.HttpHandleResults.csproj" />
   </ItemGroup>
 
 </Project>

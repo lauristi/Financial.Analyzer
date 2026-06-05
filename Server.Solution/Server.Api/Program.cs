@@ -1,22 +1,23 @@
-﻿using Core.AI.Contracts.Interfaces;
-using Core.AI.Infrastructure.Services;
+﻿using Core.Ai.Agent.Models;
+using Core.Ai.Agent.Services.Interfaces;
+using Core.Ai.Agent.Services;
 using Core.HttpHandleResults.Middlewares;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.OpenApi.Models;
 using Server.Api.Domain.Infrastructure.EncryptionLib;
-using Server.Api.Domain.Service.BankService;
 using Server.Api.Domain.Service.BankService.Interface;
+using Server.Api.Domain.Service.BankService;
 using Server.Api.Domain.Service.ExpenseService;
-using Server.Api.Domain.Service.InfrastrutureService;
 using Server.Api.Domain.Service.InfrastrutureService.Interface;
+using Server.Api.Domain.Service.InfrastrutureService;
 using Server.Api.Domain.Service.ProcessStatementService.Interface;
-using Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract;
 using Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract.Interface;
+using Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract;
 using Server.Api.Domain.Service.SharedService.Interface;
 using Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
-using Server.Domain.Service.StatmentOrchestration.OrchestrationContract;
 using Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
+using Server.Domain.Service.StatmentOrchestration.OrchestrationContract;
 using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -59,9 +60,7 @@ builder.Services.AddScoped<IDataSanitizerService, DataSanitizerService>();
 builder.Services.AddScoped<IXlsService, XlsService>();
 builder.Services.AddScoped<IBankService, BankService>();
 builder.Services.AddScoped<IFinancialIntelligenceService, FinancialIntelligenceService>();
-
 builder.Services.AddScoped<IExpenseService>(sp => new ExpenseService(appRootPath));
-
 builder.Services.AddScoped<IStatementService, StatementService>();
 builder.Services.AddScoped<IStatementMapperService, StatementMapperService>();
 builder.Services.AddScoped<IStatementOrchestratorService, StatementOrchestratorService>();
@@ -74,50 +73,44 @@ builder.Services.AddScoped<IStatementOrchestratorService, StatementOrchestratorS
 builder.Services.AddScoped<IFinancialDashboardService, FinancialDashboarService>();
 
 // Registro do Serviço de Excel utilizando uma "Factory" (Fábrica) customizada.
-// Usamos este formato porque o StatementXlsService possui um construtor misto:
 builder.Services.AddScoped<IStatementXlsService>(sp =>
 {
-    //01  Resolve o serviço de Dashboard que já está no container
-    //02  Retorna a instância da classe passando o parâmetro manual e o serviço resolvido
     var dashboardService = sp.GetRequiredService<IFinancialDashboardService>();
-
     return new StatementXlsService(appRootPath, dashboardService);
 });
 
 #endregion 03. Injeção de dependencia com Factory
 
 #region 04. Injecao de Dependência para Analista Financeiro de IA
-// Adiciona o arquivo de segredos à configuração
+
+// 1. Garante a leitura do seu arquivo externo de credenciais locais e de nuvem
 builder.Configuration.AddJsonFile("appsettings.Secrets.json", optional: true, reloadOnChange: true);
 
-// 1. Recuperamos as configurações do appsettings.json
-var aiProvider = builder.Configuration["AiSettings:Provider"];
+// 2. Captura a seção do arquivo de segredos
+var aiSettingsSection = builder.Configuration.GetSection("AiSettings");
+string providerActive = aiSettingsSection["Provider"] ?? "DeepSeekLocal";
 
-if (aiProvider == "Gemini")
+// 3. Mapeia as chaves personalizadas do seu Secrets para o objeto de opções da biblioteca
+var aiOptions = new AiAgentOptions
 {
-    var apiKey = builder.Configuration["AiSettings:GeminiApiKey"];
-    builder.Services.AddScoped<IFinancialAiAnalyst>(sp =>
-        new GeminiFinancialAnalyst(apiKey));
-}
-else if (aiProvider == "DeepSeekLocal")
-{
-    var deepSeekUri = new Uri(builder.Configuration["AiSettings:DeepSeekUri"] ?? "http://localhost:11434");
-    var modelName = builder.Configuration["AiSettings:DeepSeekModel"] ?? "deepseek-r1:8b";
+    Provider = providerActive,
+    ApiKey = aiSettingsSection["GeminiApiKey"],
+    ModelName = aiSettingsSection["DeepSeekModel"] ?? "deepseek-r1:8b",
 
-    builder.Services.AddScoped<IFinancialAiAnalyst>(sp =>
-        new DeepSeekFinancialAnalyst(deepSeekUri, modelName));
-}
-else
-{
-    // Configuração padrão para o Ollama Local gerenciado via Docker
-    var dockerUri = new Uri(builder.Configuration["AiSettings:DockerUri"] ?? "npipe://./pipe/docker_engine");
-    var ollamaUri = new Uri(builder.Configuration["AiSettings:OllamaUri"] ?? "http://localhost:11434");
-    builder.Services.AddScoped<IFinancialAiAnalyst>(sp =>
-        new OllamaFinancialAnalyst(dockerUri, ollamaUri));
-}
+    // Converte e injeta a URI correta baseado no Provedor ativo selecionado
+    BaseUri = providerActive.Equals("DeepSeekLocal", StringComparison.OrdinalIgnoreCase)
+        ? (!string.IsNullOrWhiteSpace(aiSettingsSection["DeepSeekUri"]) ? new Uri(aiSettingsSection["DeepSeekUri"]) : new Uri("http://192.168.0.220:11434"))
+        : (!string.IsNullOrWhiteSpace(aiSettingsSection["OllamaUri"]) ? new Uri(aiSettingsSection["OllamaUri"]) : new Uri("http://localhost:11434")),
 
-// 2. Registramos o serviço de domínio que orquestra a inteligência
-builder.Services.AddScoped<IFinancialIntelligenceService, FinancialIntelligenceService>();
+    DockerUri = !string.IsNullOrWhiteSpace(aiSettingsSection["DockerUri"])
+        ? new Uri(aiSettingsSection["DockerUri"])
+        : null
+};
+
+// 4. Registra as opções resolvidas e o novo serviço genérico no container do .NET
+builder.Services.AddSingleton(aiOptions);
+builder.Services.AddScoped<IAiCoreAgentService, AiCoreAgentService>();
+
 #endregion 04. Injecao de Dependência para Analista Financeiro de IA
 
 #region 05. Configurações de Controladores e JSON
@@ -125,7 +118,6 @@ builder.Services.AddScoped<IFinancialIntelligenceService, FinancialIntelligenceS
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // PascalCase para compatibilidade com DTOs do Blazor
         options.JsonSerializerOptions.PropertyNamingPolicy = null;
     });
 
@@ -136,7 +128,6 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    // Usamos o nome completo do tipo para evitar ambiguidades com outros pacotes
     options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Financial Analyzer API",
@@ -144,8 +135,6 @@ builder.Services.AddSwaggerGen(options =>
         Description = "API para processamento de extratos bancários e análise financeira."
     });
 
-    // Esta linha é um "truque" para garantir que o Swagger não se perca com
-    // tipos complexos ou mapeamentos que você atualizou no NuGet
     options.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
 });
 
@@ -155,9 +144,8 @@ var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-#region 06. Pipeline de Middlewares (Configuração do App)
+#region 07. Pipeline de Middlewares (Configuração do App)
 
-// Localização pt-BR
 var supportedCultures = new[] { new CultureInfo("pt-BR") };
 app.UseRequestLocalization(new RequestLocalizationOptions
 {
@@ -169,7 +157,6 @@ app.UseRequestLocalization(new RequestLocalizationOptions
 CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("pt-BR");
 CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo("pt-BR");
 
-// Pipeline de Documentação
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -187,7 +174,6 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 
 app.MapControllers();
 
-// Redireciona a raiz para o Swagger (Exclude oculta da interface grafica)
 app.MapGet("/", () => Results.Redirect("/swagger/index.html"))
                              .ExcludeFromDescription();
 

@@ -64,24 +64,6 @@
           "build/net8.0/coverlet.collector.targets": {}
         }
       },
-      "Docker.DotNet/3.125.15": {
-        "type": "package",
-        "dependencies": {
-          "Newtonsoft.Json": "13.0.1",
-          "System.Buffers": "4.5.1",
-          "System.Threading.Tasks.Extensions": "4.5.4"
-        },
-        "compile": {
-          "lib/netstandard2.1/Docker.DotNet.dll": {
-            "related": ".pdb"
-          }
-        },
-        "runtime": {
-          "lib/netstandard2.1/Docker.DotNet.dll": {
-            "related": ".pdb"
-          }
-        }
-      },
       "EPPlus/7.1.3": {
         "type": "package",
         "dependencies": {
@@ -298,10 +280,10 @@
           "build/netstandard2.0/Microsoft.CodeCoverage.targets": {}
         }
       },
-      "Microsoft.Extensions.AI.Abstractions/10.0.0": {
+      "Microsoft.Extensions.AI.Abstractions/10.4.1": {
         "type": "package",
         "dependencies": {
-          "System.Text.Json": "10.0.0"
+          "System.Text.Json": "10.0.4"
         },
         "compile": {
           "lib/net8.0/Microsoft.Extensions.AI.Abstractions.dll": {
@@ -1066,10 +1048,10 @@
           }
         }
       },
-      "OllamaSharp/5.4.16": {
+      "OllamaSharp/5.4.25": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Extensions.AI.Abstractions": "10.0.0"
+          "Microsoft.Extensions.AI.Abstractions": "10.4.1"
         },
         "compile": {
           "lib/net8.0/OllamaSharp.dll": {
@@ -1160,15 +1142,6 @@
         "frameworkReferences": [
           "Microsoft.AspNetCore.App"
         ]
-      },
-      "System.Buffers/4.5.1": {
-        "type": "package",
-        "compile": {
-          "ref/netcoreapp2.0/_._": {}
-        },
-        "runtime": {
-          "lib/netcoreapp2.0/_._": {}
-        }
       },
       "System.Collections.Immutable/8.0.0": {
         "type": "package",
@@ -1282,7 +1255,7 @@
           "buildTransitive/net6.0/_._": {}
         }
       },
-      "System.IO.Pipelines/10.0.0": {
+      "System.IO.Pipelines/10.0.4": {
         "type": "package",
         "compile": {
           "lib/net8.0/System.IO.Pipelines.dll": {
@@ -1364,7 +1337,7 @@
           }
         }
       },
-      "System.Text.Encodings.Web/10.0.0": {
+      "System.Text.Encodings.Web/10.0.4": {
         "type": "package",
         "compile": {
           "lib/net8.0/System.Text.Encodings.Web.dll": {
@@ -1386,11 +1359,11 @@
           }
         }
       },
-      "System.Text.Json/10.0.0": {
+      "System.Text.Json/10.0.4": {
         "type": "package",
         "dependencies": {
-          "System.IO.Pipelines": "10.0.0",
-          "System.Text.Encodings.Web": "10.0.0"
+          "System.IO.Pipelines": "10.0.4",
+          "System.Text.Encodings.Web": "10.0.4"
         },
         "compile": {
           "lib/net8.0/System.Text.Json.dll": {
@@ -1404,15 +1377,6 @@
         },
         "build": {
           "buildTransitive/net8.0/System.Text.Json.targets": {}
-        }
-      },
-      "System.Threading.Tasks.Extensions/4.5.4": {
-        "type": "package",
-        "compile": {
-          "ref/netcoreapp2.1/_._": {}
-        },
-        "runtime": {
-          "lib/netcoreapp2.1/_._": {}
         }
       },
       "xunit/2.9.3": {
@@ -1511,29 +1475,17 @@
           "build/net8.0/xunit.runner.visualstudio.props": {}
         }
       },
-      "Core.AI.Contracts/1.0.0": {
-        "type": "project",
-        "framework": ".NETCoreApp,Version=v8.0",
-        "compile": {
-          "bin/placeholder/Core.AI.Contracts.dll": {}
-        },
-        "runtime": {
-          "bin/placeholder/Core.AI.Contracts.dll": {}
-        }
-      },
-      "Core.AI.Infrastructure/1.0.0": {
+      "Core.Ai.Agent/1.0.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v8.0",
         "dependencies": {
-          "Core.AI.Contracts": "1.0.0",
-          "Docker.DotNet": "3.125.15",
-          "OllamaSharp": "5.4.16"
+          "OllamaSharp": "5.4.25"
         },
         "compile": {
-          "bin/placeholder/Core.AI.Infrastructure.dll": {}
+          "bin/placeholder/Core.Ai.Agent.dll": {}
         },
         "runtime": {
-          "bin/placeholder/Core.AI.Infrastructure.dll": {}
+          "bin/placeholder/Core.Ai.Agent.dll": {}
         }
       },
       "Core.HttpHandleResults/1.0.0": {
@@ -1554,8 +1506,7 @@
         "type": "project",
         "framework": ".NETCoreApp,Version=v8.0",
         "dependencies": {
-          "Core.AI.Contracts": "1.0.0",
-          "Core.AI.Infrastructure": "1.0.0",
+          "Core.Ai.Agent": "1.0.0",
           "Core.HttpHandleResults": "1.0.0",
           "Microsoft.OpenApi": "1.6.14",
           "Server.Domain": "1.0.0",
@@ -1577,7 +1528,8 @@
         "framework": ".NETCoreApp,Version=v8.0",
         "dependencies": {
           "AutoMapper": "16.0.0",
-          "Core.AI.Contracts": "1.0.0",
+          "Core.Ai.Agent": "1.0.0",
+          "Core.HttpHandleResults": "1.0.0",
           "EPPlus": "7.1.3",
           "Microsoft.AspNetCore.Hosting.Abstractions": "2.3.9",
           "Microsoft.AspNetCore.Http.Features": "5.0.17",
@@ -1841,23 +1793,6 @@
         "coverlet-icon.png",
         "coverlet.collector.8.0.0.nupkg.sha512",
         "coverlet.collector.nuspec"
-      ]
-    },
-    "Docker.DotNet/3.125.15": {
-      "sha512": "XN8FKxVv8Mjmwu104/Hl9lM61pLY675s70gzwSj8KR5pwblo8HfWLcCuinh9kYsqujBkMH4HVRCEcRuU6al4BQ==",
-      "type": "package",
-      "path": "docker.dotnet/3.125.15",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "LICENSE",
-        "docker.dotnet.3.125.15.nupkg.sha512",
-        "docker.dotnet.nuspec",
-        "icon.png",
-        "lib/netstandard2.0/Docker.DotNet.dll",
-        "lib/netstandard2.0/Docker.DotNet.pdb",
-        "lib/netstandard2.1/Docker.DotNet.dll",
-        "lib/netstandard2.1/Docker.DotNet.pdb"
       ]
     },
     "EPPlus/7.1.3": {
@@ -2168,10 +2103,10 @@
         "microsoft.codecoverage.nuspec"
       ]
     },
-    "Microsoft.Extensions.AI.Abstractions/10.0.0": {
-      "sha512": "PHeuDm2tC6wJPEQvleUr2kNQaIMNqSf3aEbzkIPlZyQ0+0SYI9SwXVLdGD1NPBI+xB+Vb2lxZKhrFlIf9kP9WA==",
+    "Microsoft.Extensions.AI.Abstractions/10.4.1": {
+      "sha512": "ZxhU/wg9BOc3ohibhLl18toPLWm96ysQoE+3OhCgrZ0TUPZd7bsUmGteeatz08yweyuPIEhtyUzEZTF+3bMWEQ==",
       "type": "package",
-      "path": "microsoft.extensions.ai.abstractions/10.0.0",
+      "path": "microsoft.extensions.ai.abstractions/10.4.1",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -2187,7 +2122,7 @@
         "lib/net9.0/Microsoft.Extensions.AI.Abstractions.xml",
         "lib/netstandard2.0/Microsoft.Extensions.AI.Abstractions.dll",
         "lib/netstandard2.0/Microsoft.Extensions.AI.Abstractions.xml",
-        "microsoft.extensions.ai.abstractions.10.0.0.nupkg.sha512",
+        "microsoft.extensions.ai.abstractions.10.4.1.nupkg.sha512",
         "microsoft.extensions.ai.abstractions.nuspec"
       ]
     },
@@ -3403,10 +3338,10 @@
         "nlog.extensions.logging.nuspec"
       ]
     },
-    "OllamaSharp/5.4.16": {
-      "sha512": "6pUxG7qqlO/ax1lv5RnUdLyH3bVuxkgqv4dYpJU7qif0vUXCY7SnonNCVZUIMkMf5yKahtLRmO83GI2yZKO7bA==",
+    "OllamaSharp/5.4.25": {
+      "sha512": "EqkPM1gbkE+RbHgKUMzp4lYjpFymWUIgJntx3u4uDXAfAIFUXJ0MGklNFCi/PdCaxNAPRpcf205yx+g6jLLhZg==",
       "type": "package",
-      "path": "ollamasharp/5.4.16",
+      "path": "ollamasharp/5.4.25",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -3424,7 +3359,7 @@
         "lib/netstandard2.0/OllamaSharp.xml",
         "lib/netstandard2.1/OllamaSharp.dll",
         "lib/netstandard2.1/OllamaSharp.xml",
-        "ollamasharp.5.4.16.nupkg.sha512",
+        "ollamasharp.5.4.25.nupkg.sha512",
         "ollamasharp.nuspec"
       ]
     },
@@ -3558,37 +3493,6 @@
         "package-readme.md",
         "swashbuckle.aspnetcore.swaggerui.6.6.2.nupkg.sha512",
         "swashbuckle.aspnetcore.swaggerui.nuspec"
-      ]
-    },
-    "System.Buffers/4.5.1": {
-      "sha512": "Rw7ijyl1qqRS0YQD/WycNst8hUUMgrMH4FCn1nNm27M4VxchZ1js3fVjQaANHO5f3sN4isvP4a+Met9Y4YomAg==",
-      "type": "package",
-      "path": "system.buffers/4.5.1",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "LICENSE.TXT",
-        "THIRD-PARTY-NOTICES.TXT",
-        "lib/net461/System.Buffers.dll",
-        "lib/net461/System.Buffers.xml",
-        "lib/netcoreapp2.0/_._",
-        "lib/netstandard1.1/System.Buffers.dll",
-        "lib/netstandard1.1/System.Buffers.xml",
-        "lib/netstandard2.0/System.Buffers.dll",
-        "lib/netstandard2.0/System.Buffers.xml",
-        "lib/uap10.0.16299/_._",
-        "ref/net45/System.Buffers.dll",
-        "ref/net45/System.Buffers.xml",
-        "ref/netcoreapp2.0/_._",
-        "ref/netstandard1.1/System.Buffers.dll",
-        "ref/netstandard1.1/System.Buffers.xml",
-        "ref/netstandard2.0/System.Buffers.dll",
-        "ref/netstandard2.0/System.Buffers.xml",
-        "ref/uap10.0.16299/_._",
-        "system.buffers.4.5.1.nupkg.sha512",
-        "system.buffers.nuspec",
-        "useSharedDesignerContext.txt",
-        "version.txt"
       ]
     },
     "System.Collections.Immutable/8.0.0": {
@@ -3836,10 +3740,10 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "System.IO.Pipelines/10.0.0": {
-      "sha512": "M1eb3nfXntaRJPrrMVM9EFS8I1bDTnt0uvUS6QP/SicZf/ZZjydMD5NiXxfmwW/uQwaMDP/yX2P+zQN1NBHChg==",
+    "System.IO.Pipelines/10.0.4": {
+      "sha512": "V7+RO17s/tzCpgqyj6t5vb54HFCvrRaMEwTcKDwpoQK66DRROzSff6kqtzHyiWRj6hrQQUmW80NL4pFSNhYpYA==",
       "type": "package",
-      "path": "system.io.pipelines/10.0.0",
+      "path": "system.io.pipelines/10.0.4",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -3860,7 +3764,7 @@
         "lib/net9.0/System.IO.Pipelines.xml",
         "lib/netstandard2.0/System.IO.Pipelines.dll",
         "lib/netstandard2.0/System.IO.Pipelines.xml",
-        "system.io.pipelines.10.0.0.nupkg.sha512",
+        "system.io.pipelines.10.0.4.nupkg.sha512",
         "system.io.pipelines.nuspec",
         "useSharedDesignerContext.txt"
       ]
@@ -3974,10 +3878,10 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "System.Text.Encodings.Web/10.0.0": {
-      "sha512": "257hh1ep1Gqm1Lm0ulxf7vVBVMJuGN6EL4xSWjpi46DffXzm1058IiWsfSC06zSm7SniN+Tb5160UnXsSa8rRg==",
+    "System.Text.Encodings.Web/10.0.4": {
+      "sha512": "6g3B7jNsPRNf4luuYt1qE4R8S3JI+zMsfGWL9Idv4Mk1Z9Gh+rCagp9sG3AejPS87yBj1DjopM4i3wSz0WnEqg==",
       "type": "package",
-      "path": "system.text.encodings.web/10.0.0",
+      "path": "system.text.encodings.web/10.0.4",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -4006,15 +3910,15 @@
         "runtimes/wasi/lib/net10.0/System.Text.Encodings.Web.xml",
         "runtimes/win/lib/net9.0/System.Text.Encodings.Web.dll",
         "runtimes/win/lib/net9.0/System.Text.Encodings.Web.xml",
-        "system.text.encodings.web.10.0.0.nupkg.sha512",
+        "system.text.encodings.web.10.0.4.nupkg.sha512",
         "system.text.encodings.web.nuspec",
         "useSharedDesignerContext.txt"
       ]
     },
-    "System.Text.Json/10.0.0": {
-      "sha512": "1Dpjwq9peG/Wt5BNbrzIhTpclfOSqBWZsUO28vVr59yQlkvL5jLBWfpfzRmJ1OY+6DciaY0DUcltyzs4fuZHjw==",
+    "System.Text.Json/10.0.4": {
+      "sha512": "1tRPRt8D/kzjGL7em1uJ3iJlvVIC3G/sZJ+ZgSvtVYLXGGO26Clkqy2b5uts/pyR706Yw8/xA7exeI2PI50dpw==",
       "type": "package",
-      "path": "system.text.json/10.0.0",
+      "path": "system.text.json/10.0.4",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -4078,46 +3982,9 @@
         "lib/net9.0/System.Text.Json.xml",
         "lib/netstandard2.0/System.Text.Json.dll",
         "lib/netstandard2.0/System.Text.Json.xml",
-        "system.text.json.10.0.0.nupkg.sha512",
+        "system.text.json.10.0.4.nupkg.sha512",
         "system.text.json.nuspec",
         "useSharedDesignerContext.txt"
-      ]
-    },
-    "System.Threading.Tasks.Extensions/4.5.4": {
-      "sha512": "zteT+G8xuGu6mS+mzDzYXbzS7rd3K6Fjb9RiZlYlJPam2/hU7JCBZBVEcywNuR+oZ1ncTvc/cq0faRr3P01OVg==",
-      "type": "package",
-      "path": "system.threading.tasks.extensions/4.5.4",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "LICENSE.TXT",
-        "THIRD-PARTY-NOTICES.TXT",
-        "lib/MonoAndroid10/_._",
-        "lib/MonoTouch10/_._",
-        "lib/net461/System.Threading.Tasks.Extensions.dll",
-        "lib/net461/System.Threading.Tasks.Extensions.xml",
-        "lib/netcoreapp2.1/_._",
-        "lib/netstandard1.0/System.Threading.Tasks.Extensions.dll",
-        "lib/netstandard1.0/System.Threading.Tasks.Extensions.xml",
-        "lib/netstandard2.0/System.Threading.Tasks.Extensions.dll",
-        "lib/netstandard2.0/System.Threading.Tasks.Extensions.xml",
-        "lib/portable-net45+win8+wp8+wpa81/System.Threading.Tasks.Extensions.dll",
-        "lib/portable-net45+win8+wp8+wpa81/System.Threading.Tasks.Extensions.xml",
-        "lib/xamarinios10/_._",
-        "lib/xamarinmac20/_._",
-        "lib/xamarintvos10/_._",
-        "lib/xamarinwatchos10/_._",
-        "ref/MonoAndroid10/_._",
-        "ref/MonoTouch10/_._",
-        "ref/netcoreapp2.1/_._",
-        "ref/xamarinios10/_._",
-        "ref/xamarinmac20/_._",
-        "ref/xamarintvos10/_._",
-        "ref/xamarinwatchos10/_._",
-        "system.threading.tasks.extensions.4.5.4.nupkg.sha512",
-        "system.threading.tasks.extensions.nuspec",
-        "useSharedDesignerContext.txt",
-        "version.txt"
       ]
     },
     "xunit/2.9.3": {
@@ -4260,15 +4127,10 @@
         "xunit.runner.visualstudio.nuspec"
       ]
     },
-    "Core.AI.Contracts/1.0.0": {
+    "Core.Ai.Agent/1.0.0": {
       "type": "project",
-      "path": "../../Shared.Solution/Core.AI.Contracts/Core.AI.Contracts.csproj",
-      "msbuildProject": "../../Shared.Solution/Core.AI.Contracts/Core.AI.Contracts.csproj"
-    },
-    "Core.AI.Infrastructure/1.0.0": {
-      "type": "project",
-      "path": "../../Shared.Solution/Core.AI.Infrastructure/Core.AI.Infrastructure.csproj",
-      "msbuildProject": "../../Shared.Solution/Core.AI.Infrastructure/Core.AI.Infrastructure.csproj"
+      "path": "../../Shared.Solution/Core.Ai.Agent/Core.Ai.Agent.csproj",
+      "msbuildProject": "../../Shared.Solution/Core.Ai.Agent/Core.Ai.Agent.csproj"
     },
     "Core.HttpHandleResults/1.0.0": {
       "type": "project",
@@ -4293,8 +4155,6 @@
   },
   "projectFileDependencyGroups": {
     "net8.0": [
-      "Core.AI.Contracts >= 1.0.0",
-      "Core.AI.Infrastructure >= 1.0.0",
       "Microsoft.NET.Test.Sdk >= 18.0.1",
       "Moq >= 4.20.72",
       "Server.Api >= 1.0.0",
@@ -4346,12 +4206,6 @@
             },
             "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Server.Web.Solution\\Server.Web\\Server.Web.csproj": {
               "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Server.Web.Solution\\Server.Web\\Server.Web.csproj"
-            },
-            "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.AI.Contracts\\Core.AI.Contracts.csproj": {
-              "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.AI.Contracts\\Core.AI.Contracts.csproj"
-            },
-            "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.AI.Infrastructure\\Core.AI.Infrastructure.csproj": {
-              "projectPath": "D:\\Projeto\\MyRepository\\lauristi\\Lenovo\\Financial.Analyzer\\Shared.Solution\\Core.AI.Infrastructure\\Core.AI.Infrastructure.csproj"
             }
           }
         }

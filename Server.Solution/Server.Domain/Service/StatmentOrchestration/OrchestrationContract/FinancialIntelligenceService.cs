@@ -1,4 +1,5 @@
-﻿using Core.AI.Contracts.Interfaces;
+﻿using Core.Ai.Agent.Models;
+using Core.Ai.Agent.Services.Interfaces;
 using Server.Api.Domain.Service.ProcessStatementService.Enum;
 using Server.Api.Domain.Service.ProcessStatementService.Model;
 using Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel;
@@ -8,16 +9,15 @@ using Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interfac
 public class FinancialIntelligenceService : IFinancialIntelligenceService
 {
     private readonly IExpenseService _expenseService;
-    private readonly IFinancialAiAnalyst _aiAnalyst;
+    private readonly IAiCoreAgentService _aiAgentService;
     private readonly IFinancialDashboardService _financialDashboardService;
 
-    // Atualize o construtor para receber ambos os serviços
     public FinancialIntelligenceService(IExpenseService expenseService,
-                                        IFinancialAiAnalyst aiAnalyst,
+                                        IAiCoreAgentService aiAgentService,
                                         IFinancialDashboardService financialDashboardService)
     {
         _expenseService = expenseService;
-        _aiAnalyst = aiAnalyst; // Agora o campo deixará de ser nulo
+        _aiAgentService = aiAgentService ?? throw new ArgumentNullException(nameof(aiAgentService));
         _financialDashboardService = financialDashboardService;
     }
 
@@ -31,10 +31,6 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
 
             string subjectUpper = item.Subject.ToUpper().Trim();
 
-            // 01. Definição do Tipo Financeiro
-            // BB - Debito é negativo, Crédito é positivo
-            // NUbank - somente tem debito , mas o valor é positivo
-
             item.IsCredit = false;
 
             item.IsCredit = subjectUpper.Contains("CRÉDITO") ||
@@ -43,47 +39,39 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
                             subjectUpper.Contains("DEPOSITO") ||
                             subjectUpper.Contains("DEVOLVIDO");
 
-            // 02. Processamento por tipo de fluxo
             Expense expense = new Expense { Origin = null, Category = null, CategoryOwner = null };
 
             if (item.IsCredit)
             {
-                // Se for crédito, decidimos se é um crédito que nos interessa ou se ignoramos ruído
                 item.FinancialType = IsInternalMovement(subjectUpper)
                     ? FinancialType.Ignore
                     : FinancialType.UnknownCredit;
             }
             else
             {
-                // Se for débito, verificamos se é ruído primeiro
                 if (IsInternalMovement(subjectUpper))
                 {
                     item.FinancialType = FinancialType.Ignore;
                 }
                 else
                 {
-                    // Se for um débito real, buscamos a categoria no CSV
                     expense = DetermineOwner(subjectUpper, expenses);
                     item.FinancialType = MapToFinancialType(expense, item.IsCredit);
                 }
             }
 
-            // 03. Determinação do Dono baseada no seu expenses.csv
             expense = DetermineOwner(subjectUpper, expenses);
             item.Category = expense.Category;
             item.CategoryOwner = expense.CategoryOwner;
 
-            // 04. Cálculo do Score
             item.Score = CalculateFinancialImpactScore(item.Value);
 
-            //05 Ajuste do valor para negativo se for débito
             if (!item.IsCredit)
             {
                 item.Value = -Math.Abs(item.Value);
             }
         }
 
-        //06 Com tudo processado , geramos os totais para o dashboard
         statementResponse.SpendingDataList = extractedTransactions;
         _financialDashboardService.GerateDashboardTotals(statementResponse);
 
@@ -102,15 +90,38 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
 
         try
         {
-            // 2. Extraímos apenas as descrições (Subject) para enviar à IA
-            var descriptions = pendingItems.Select(x => x.Subject ?? "Transação desconhecida").ToList();
+            // 2. Definição do System Prompt estruturado para forçar o retorno do JSON esperado pela aplicação
+            // Usando Raw String Literals (iniciado por três aspas duplas consecutiveis)
+            // mantem o texto limpo, idêntico a um arquivo de texto comum
 
-            // 3. Chamamos a infraestrutura de IA para processar o lote de uma só vez
-            // Note que aqui já usamos o novo método de lote que otimiza o Docker/Ollama
-            var aiResults = (await _aiAnalyst.AnalyzeTransactionBatchAsync(descriptions, ct)).ToList();
+            string systemPrompt = """
+            Atue como um analista financeiro sênior. Você receberá uma lista de descrições de transações bancárias.
+            Analise cada item e retorne estritamente um array JSON contendo objetos com as seguintes propriedades:
 
-            // 4. Mapeamos os resultados de volta para os nossos objetos de domínio
-            // Usamos um loop indexado para garantir a correspondência da ordem (conforme o prompt exige)
+            - "SuggestedCategory": string contendo a categoria sugerida.
+            - "ConfidenceLevel": um valor numérico decimal entre 0.0 e 1.0 representando o nível de certeza (ex: 1.0 para alta, 0.5 para média, 0.2 para baixa).
+            - "Reasoning": string explicativa curta do porquê da categoria.
+
+            Não adicione textos explicativos ou blocos de Markdown fora do array JSON.
+            """;
+
+            // 3. Chamamos o novo motor genérico passando a lista e a expressão lambda que extrai a propriedade 'Subject'
+            AiAgentResponse<AiTransactionResult> aiResponse = await _aiAgentService.ProcessBatchAsync<SpendingData, AiTransactionResult>(
+                inputs: pendingItems,
+                systemPrompt: systemPrompt,
+                textExtractor: x => x.Subject ?? "Transação desconhecida",
+                cancellationToken: ct
+            );
+
+            // 4. Se a biblioteca reportar erro de processamento ou parse, lançamos para o bloco catch tratar
+            if (!aiResponse.IsSuccess)
+            {
+                throw new Exception(aiResponse.ErrorMessage);
+            }
+
+            var aiResults = aiResponse.Data.ToList();
+
+            // 5. Mapeamos os resultados estruturados de volta para os nossos objetos de domínio
             for (int i = 0; i < pendingItems.Count; i++)
             {
                 if (i < aiResults.Count)
@@ -119,7 +130,7 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
                     var item = pendingItems[i];
 
                     item.Category = result.SuggestedCategory;
-                    item.ConfidenceLevel = result.ConfidenceLevel;
+                    item.ConfidenceLevel = double.Parse(result.ConfidenceLevel ?? "0.0");
                     item.IAExplanation = result.Reasoning;
                     item.ProcessedByIA = true;
                     item.SourceRule = "Usando Serviço de I.A.";
@@ -128,14 +139,11 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
         }
         catch (Exception ex)
         {
-            // Em caso de falha na IA, marcamos os itens para que o utilizador saiba no XLS
             foreach (var item in pendingItems)
             {
                 item.SourceRule = "Erro no processamento IA";
                 item.IAExplanation = ex.Message;
             }
-
-            // Num cenário sénior, poderíamos fazer um log aqui (ex: Serilog)
         }
 
         return spendingList;
@@ -163,7 +171,6 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
 
     private bool IsInternalMovement(string subjectUpper)
     {
-        // Se for uma devolução, não devemos ignorar, pois queremos contabilizar o crédito
         if (subjectUpper.Contains("DEVOLVIDO"))
         {
             return false;
@@ -171,9 +178,9 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
 
         var termsToIgnore = new[]
         {
-        "APLICAÇÃO", "RESGATE", "INVESTIMENTO", "POUPANÇA", "CDB",
-        "SALDO", "S A L D O", "TRANSFERIDO", "PIX TRANSF", "ESTORNO"
-    };
+            "APLICAÇÃO", "RESGATE", "INVESTIMENTO", "POUPANÇA", "CDB",
+            "SALDO", "S A L D O", "TRANSFERIDO", "PIX TRANSF", "ESTORNO"
+        };
 
         return termsToIgnore.Any(term => subjectUpper.Contains(term));
     }
@@ -192,7 +199,6 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
                 return FinancialType.ExtraDebit;
 
             default:
-                // Este bloco agora captura: owner nulo, vazio ou categorias não mapeadas
                 return isCredit ? FinancialType.UnknownCredit : FinancialType.UnknownDebit;
         }
     }
@@ -214,4 +220,15 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
     }
 
     #endregion Helpers
+}
+
+/// <summary>
+/// Classe auxiliar interna para mapear o contrato JSON esperado da resposta da Inteligência Artificial.
+/// </summary>
+public class AiTransactionResult
+{
+    public string? SuggestedCategory { get; set; }
+    public string? ConfidenceLevel { get; set; }
+    public string? PointOfAttention { get; set; }
+    public string? Reasoning { get; set; }
 }

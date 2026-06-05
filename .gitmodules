@@ -1,0 +1,3 @@
+[submodule "Shared.Solution"]
+	path = Shared.Solution
+	url = https://github.com/lauristi/Shared.Solution.git

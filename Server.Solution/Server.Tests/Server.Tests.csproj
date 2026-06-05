@@ -25,8 +25,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Server.Web.Solution\Server.Web\Server.Web.csproj" />
-    <ProjectReference Include="..\..\Shared.Solution\Core.AI.Contracts\Core.AI.Contracts.csproj" />
-    <ProjectReference Include="..\..\Shared.Solution\Core.AI.Infrastructure\Core.AI.Infrastructure.csproj" />
     <ProjectReference Include="..\Server.Api\Server.Api.csproj" />
     <ProjectReference Include="..\Server.Domain\Server.Domain.csproj" />
   </ItemGroup>
