@@ -7,13 +7,11 @@ COPY ["Server.Solution/Server.Solution.sln", "Server.Solution/"]
 COPY ["Shared.Solution/Shared.Solution.sln", "Shared.Solution/"]
 
 # 2. Copia todos os arquivos .csproj preservando a estrutura de pastas
-# Isso evita o erro de projetos faltantes listados na solução
 COPY ["Server.Solution/Server.Api/Server.Api.csproj", "Server.Solution/Server.Api/"]
 COPY ["Server.Solution/Server.Domain/Server.Domain.csproj", "Server.Solution/Server.Domain/"]
 COPY ["Server.Solution/Server.Tests/Server.Tests.csproj", "Server.Solution/Server.Tests/"]
 COPY ["Shared.Solution/Core.HttpHandleResults/Core.HttpHandleResults.csproj", "Shared.Solution/Core.HttpHandleResults/"]
-COPY ["Shared.Solution/Core.AI.Contracts/Core.AI.Contracts.csproj", "Shared.Solution/Core.AI.Contracts/"]
-COPY ["Shared.Solution/Core.AI.Infrastructure/Core.AI.Infrastructure.csproj", "Shared.Solution/Core.AI.Infrastructure/"]
+COPY ["Shared.Solution/Core.Ai.Agent/Core.Ai.Agent.csproj", "Shared.Solution/Core.Ai.Agent/"]
 
 # 3. Restaura as dependências (agora com todos os projetos presentes)
 RUN dotnet restore "Server.Solution/Server.Solution.sln"
