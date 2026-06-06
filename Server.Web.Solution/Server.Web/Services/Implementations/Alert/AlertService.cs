@@ -53,7 +53,6 @@ public class AlertService : IAlertService
 
     public async void NotifyChanged()
     {
-
         Message = "Atualizando...";
         CssClass = "alert-info";
         IsVisible = true;
@@ -63,7 +62,6 @@ public class AlertService : IAlertService
 
         IsVisible = false;
         NotifyStateChanged();
-
     }
 
     #region Mensagem de processamento

@@ -1,23 +1,23 @@
-﻿using Core.Ai.Agent.Models;
+﻿using Core.Ai.Agent.Services;
 using Core.Ai.Agent.Services.Interfaces;
-using Core.Ai.Agent.Services;
 using Core.HttpHandleResults.Middlewares;
+using Core.IA.Agente.Extensions;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Server.Api.Domain.Infrastructure.EncryptionLib;
-using Server.Api.Domain.Service.BankService.Interface;
 using Server.Api.Domain.Service.BankService;
+using Server.Api.Domain.Service.BankService.Interface;
 using Server.Api.Domain.Service.ExpenseService;
-using Server.Api.Domain.Service.InfrastrutureService.Interface;
 using Server.Api.Domain.Service.InfrastrutureService;
+using Server.Api.Domain.Service.InfrastrutureService.Interface;
 using Server.Api.Domain.Service.ProcessStatementService.Interface;
-using Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract.Interface;
 using Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract;
+using Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract.Interface;
 using Server.Api.Domain.Service.SharedService.Interface;
 using Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
-using Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
 using Server.Domain.Service.StatmentOrchestration.OrchestrationContract;
+using Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
 using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -86,29 +86,10 @@ builder.Services.AddScoped<IStatementXlsService>(sp =>
 // 1. Garante a leitura do seu arquivo externo de credenciais locais e de nuvem
 builder.Configuration.AddJsonFile("appsettings.Secrets.json", optional: true, reloadOnChange: true);
 
-// 2. Captura a seção do arquivo de segredos
-var aiSettingsSection = builder.Configuration.GetSection("AiSettings");
-string providerActive = aiSettingsSection["Provider"] ?? "DeepSeekLocal";
+// 2. Registra as configurações de IA centralizadas na Class Library (Core.IA.Agente)
+builder.Services.AddAiAgentConfiguration(builder.Configuration);
 
-// 3. Mapeia as chaves personalizadas do seu Secrets para o objeto de opções da biblioteca
-var aiOptions = new AiAgentOptions
-{
-    Provider = providerActive,
-    ApiKey = aiSettingsSection["GeminiApiKey"],
-    ModelName = aiSettingsSection["DeepSeekModel"] ?? "deepseek-r1:8b",
-
-    // Converte e injeta a URI correta baseado no Provedor ativo selecionado
-    BaseUri = providerActive.Equals("DeepSeekLocal", StringComparison.OrdinalIgnoreCase)
-        ? (!string.IsNullOrWhiteSpace(aiSettingsSection["DeepSeekUri"]) ? new Uri(aiSettingsSection["DeepSeekUri"]) : new Uri("http://192.168.0.220:11434"))
-        : (!string.IsNullOrWhiteSpace(aiSettingsSection["OllamaUri"]) ? new Uri(aiSettingsSection["OllamaUri"]) : new Uri("http://localhost:11434")),
-
-    DockerUri = !string.IsNullOrWhiteSpace(aiSettingsSection["DockerUri"])
-        ? new Uri(aiSettingsSection["DockerUri"])
-        : null
-};
-
-// 4. Registra as opções resolvidas e o novo serviço genérico no container do .NET
-builder.Services.AddSingleton(aiOptions);
+// 3. Registra o serviço de IA no container do .NET
 builder.Services.AddScoped<IAiCoreAgentService, AiCoreAgentService>();
 
 #endregion 04. Injecao de Dependência para Analista Financeiro de IA
@@ -177,6 +158,6 @@ app.MapControllers();
 app.MapGet("/", () => Results.Redirect("/swagger/index.html"))
                              .ExcludeFromDescription();
 
-#endregion 06. Pipeline de Middlewares (Configuração do App)
+#endregion 07. Pipeline de Middlewares (Configuração do App)
 
 app.Run();

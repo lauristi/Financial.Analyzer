@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http; // Necessário para o IFormFile
 using Server.Api.Domain.Service.ProcessStatementService.Model;
-using System.Text;
 
 namespace Server.Api.Domain.Service.ExpenseService
 {
@@ -41,7 +40,7 @@ namespace Server.Api.Domain.Service.ExpenseService
 
                 string content = await reader.ReadToEndAsync();
                 string[] lines = content.Split(Environment.NewLine);
-                                
+
                 foreach (string line in lines)
                 {
                     if (string.IsNullOrWhiteSpace(line)) continue;

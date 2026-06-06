@@ -31,7 +31,7 @@ public class StatementOrchestratorService : IStatementOrchestratorService
 
     public async Task<StatementResponse> ExecuteOrchestrationAsync(List<IFormFile> files)
     {
-        // 01.Criar uma lista de transações a partir dos arquivos CSV
+        // 01. Criar uma lista de transações a partir dos arquivos CSV
         List<TransactionModel> transactions = await _statementService.ProcessCsvFilesAsync(files);
 
         if (!transactions.Any())
@@ -50,25 +50,23 @@ public class StatementOrchestratorService : IStatementOrchestratorService
         statementResponse = _financialIntelligenceService.AnalyzeSpending(allSpending, expenses);
 
         // 04 - Inteligência Artificial (Assíncrona/Probabilística) e com Fallback
-        // Passamos a lista e o método nos devolve a mesma lista atualizada
         try
         {
-            // Aumentamos a segurança com o Timeout
+            // REMOVIDO o .WaitAsync(15). Agora o tempo limite é ditado dinamicamente pela configuração da biblioteca (ex: 90s para o DeepSeek)
             statementResponse.SpendingDataList = await _financialIntelligenceService
-                .AnalyzeSpendingUsingIAAsync(statementResponse.SpendingDataList)
-                .WaitAsync(TimeSpan.FromSeconds(15));
+                .AnalyzeSpendingUsingIAAsync(statementResponse.SpendingDataList);
         }
         catch (TimeoutException)
         {
-            ApplyIAFallback(statementResponse.SpendingDataList, "Tempo limite excedido (15s)");
+            // Mensagem ajustada para refletir o comportamento dinâmico
+            ApplyIAFallback(statementResponse.SpendingDataList, "Tempo limite excedido pelo provedor de IA");
         }
         catch (Exception ex)
         {
-            // Aqui você pode logar o erro real (ex) se tiver um logger disponível
-            ApplyIAFallback(statementResponse.SpendingDataList, "Erro técnico no serviço de IA");
+            ApplyIAFallback(statementResponse.SpendingDataList, $"Erro técnico no serviço de IA: {ex.Message}");
         }
 
-        //04  Cria o XLS
+        // 05 - Cria o XLS com os dados atualizados pela IA
         await _statementXlsService.CreatePreFormatedExcelAsync(statementResponse);
 
         if (System.IO.File.Exists(statementResponse.FilePath))

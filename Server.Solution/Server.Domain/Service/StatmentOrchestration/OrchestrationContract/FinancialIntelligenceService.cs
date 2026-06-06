@@ -130,7 +130,7 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
                     var item = pendingItems[i];
 
                     item.Category = result.SuggestedCategory;
-                    item.ConfidenceLevel = double.Parse(result.ConfidenceLevel ?? "0.0");
+                    item.ConfidenceLevel = result.ConfidenceLevel;
                     item.IAExplanation = result.Reasoning;
                     item.ProcessedByIA = true;
                     item.SourceRule = "Usando Serviço de I.A.";
@@ -220,15 +220,4 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
     }
 
     #endregion Helpers
-}
-
-/// <summary>
-/// Classe auxiliar interna para mapear o contrato JSON esperado da resposta da Inteligência Artificial.
-/// </summary>
-public class AiTransactionResult
-{
-    public string? SuggestedCategory { get; set; }
-    public string? ConfidenceLevel { get; set; }
-    public string? PointOfAttention { get; set; }
-    public string? Reasoning { get; set; }
 }
