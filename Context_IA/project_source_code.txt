@@ -1,6 +1,6 @@
 ﻿==================================================
 CONTEUDO COMPACTADO: Server.Solution\Server.Api\Program.cs
-USINGS: Core.AI.Contracts.Interfaces, Core.AI.Infrastructure.Services, Core.Infrastructure.Middlewares, Microsoft.AspNetCore.HttpOverrides, Microsoft.AspNetCore.Localization, Microsoft.OpenApi.Models, Server.Api.Domain.Infrastructure.EncryptionLib, Server.Api.Domain.Service.BankService, Server.Api.Domain.Service.BankService.Interface, Server.Api.Domain.Service.ExpenseService, Server.Api.Domain.Service.InfrastrutureService, Server.Api.Domain.Service.InfrastrutureService.Interface, Server.Api.Domain.Service.ProcessStatementService.Interface, Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract, Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract.Interface, Server.Api.Domain.Service.SharedService.Interface, Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface, Server.Domain.Service.StatmentOrchestration.OrchestrationContract, Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface, System.Globalization
+USINGS: Core.Ai.Agent.Services, Core.Ai.Agent.Services.Interfaces, Core.HttpHandleResults.Middlewares, Core.IA.Agente.Extensions, Microsoft.AspNetCore.HttpOverrides, Microsoft.AspNetCore.Localization, Microsoft.OpenApi, Server.Api.Domain.Infrastructure.EncryptionLib, Server.Api.Domain.Service.BankService, Server.Api.Domain.Service.BankService.Interface, Server.Api.Domain.Service.ExpenseService, Server.Api.Domain.Service.InfrastrutureService, Server.Api.Domain.Service.InfrastrutureService.Interface, Server.Api.Domain.Service.ProcessStatementService.Interface, Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract, Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract.Interface, Server.Api.Domain.Service.SharedService.Interface, Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface, Server.Domain.Service.StatmentOrchestration.OrchestrationContract, Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface, System.Globalization
 ==================================================
 var builder = WebApplication.CreateBuilder(args);
 // Registro de provedor para suporte a codificação Latin1 (comum em arquivos bancários)
@@ -39,42 +39,24 @@ builder.Services.AddScoped<IStatementOrchestratorService, StatementOrchestratorS
 // Registro base: essencial para que o IntelligenceService e o XlsService funcionem
 builder.Services.AddScoped<IFinancialDashboardService, FinancialDashboarService>();
 // Registro do Serviço de Excel utilizando uma "Factory" (Fábrica) customizada.
-// Usamos este formato porque o StatementXlsService possui um construtor misto:
 builder.Services.AddScoped<IStatementXlsService>(sp =>
 {
-    //01  Resolve o serviço de Dashboard que já está no container
-    //02  Retorna a instância da classe passando o parâmetro manual e o serviço resolvido
     var dashboardService = sp.GetRequiredService<IFinancialDashboardService>();
     return new StatementXlsService(appRootPath, dashboardService);
 });
 #endregion 03. Injeção de dependencia com Factory
 #region 04. Injecao de Dependência para Analista Financeiro de IA
-// Adiciona o arquivo de segredos à configuração
+// 1. Garante a leitura do seu arquivo externo de credenciais locais e de nuvem
 builder.Configuration.AddJsonFile("appsettings.Secrets.json", optional: true, reloadOnChange: true);
-// 1. Recuperamos as configurações do appsettings.json
-var aiProvider = builder.Configuration["AiSettings:Provider"]; // "Ollama" ou "Gemini"
-if (aiProvider == "Gemini")
-{
-    var apiKey = builder.Configuration["AiSettings:GeminiApiKey"];
-    builder.Services.AddScoped<IFinancialAiAnalyst>(sp =>
-        new GeminiFinancialAnalyst(apiKey));
-}
-else
-{
-    // Configuração padrão para o Ollama Local
-    var dockerUri = new Uri(builder.Configuration["AiSettings:DockerUri"] ?? "npipe://./pipe/docker_engine");
-    var ollamaUri = new Uri(builder.Configuration["AiSettings:OllamaUri"] ?? "http://localhost:11434");
-    builder.Services.AddScoped<IFinancialAiAnalyst>(sp =>
-        new OllamaFinancialAnalyst(dockerUri, ollamaUri));
-}
-// 2. Registramos o serviço de domínio que orquestra a inteligência
-builder.Services.AddScoped<IFinancialIntelligenceService, FinancialIntelligenceService>();
+// 2. Registra as configurações de IA centralizadas na Class Library (Core.IA.Agente)
+builder.Services.AddAiAgentConfiguration(builder.Configuration);
+// 3. Registra o serviço de IA no container do .NET
+builder.Services.AddScoped<IAiCoreAgentService, AiCoreAgentService>();
 #endregion 04. Injecao de Dependência para Analista Financeiro de IA
 #region 05. Configurações de Controladores e JSON
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // PascalCase para compatibilidade com DTOs do Blazor
         options.JsonSerializerOptions.PropertyNamingPolicy = null;
     });
 #endregion 05. Configurações de Controladores e JSON
@@ -82,22 +64,18 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    // Usamos o nome completo do tipo para evitar ambiguidades com outros pacotes
     options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Financial Analyzer API",
         Version = "v1",
         Description = "API para processamento de extratos bancários e análise financeira."
     });
-    // Esta linha é um "truque" para garantir que o Swagger não se perca com
-    // tipos complexos ou mapeamentos que você atualizou no NuGet
     options.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
 });
 #endregion 06. Swagger / OpenAPI Configuration
 var app = builder.Build();
 app.UseMiddleware<GlobalExceptionMiddleware>();
-#region 06. Pipeline de Middlewares (Configuração do App)
-// Localização pt-BR
+#region 07. Pipeline de Middlewares (Configuração do App)
 var supportedCultures = new[] { new CultureInfo("pt-BR") };
 app.UseRequestLocalization(new RequestLocalizationOptions
 {
@@ -107,7 +85,6 @@ app.UseRequestLocalization(new RequestLocalizationOptions
 });
 CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("pt-BR");
 CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo("pt-BR");
-// Pipeline de Documentação
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -121,10 +98,9 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 app.MapControllers();
-// Redireciona a raiz para o Swagger (Exclude oculta da interface grafica)
 app.MapGet("/", () => Results.Redirect("/swagger/index.html"))
                              .ExcludeFromDescription();
-#endregion 06. Pipeline de Middlewares (Configuração do App)
+#endregion 07. Pipeline de Middlewares (Configuração do App)
 app.Run();
 
 
@@ -1016,7 +992,7 @@ public class StatementOrchestratorService : IStatementOrchestratorService
     }
     public async Task<StatementResponse> ExecuteOrchestrationAsync(List<IFormFile> files)
     {
-        // 01.Criar uma lista de transações a partir dos arquivos CSV
+        // 01. Criar uma lista de transações a partir dos arquivos CSV
         List<TransactionModel> transactions = await _statementService.ProcessCsvFilesAsync(files);
         if (!transactions.Any())
         {
@@ -1030,24 +1006,22 @@ public class StatementOrchestratorService : IStatementOrchestratorService
         // 03 - Inteligência Local (Síncrona/Heurística)
         statementResponse = _financialIntelligenceService.AnalyzeSpending(allSpending, expenses);
         // 04 - Inteligência Artificial (Assíncrona/Probabilística) e com Fallback
-        // Passamos a lista e o método nos devolve a mesma lista atualizada
         try
         {
-            // Aumentamos a segurança com o Timeout
+            // REMOVIDO o .WaitAsync(15). Agora o tempo limite é ditado dinamicamente pela configuração da biblioteca (ex: 90s para o DeepSeek)
             statementResponse.SpendingDataList = await _financialIntelligenceService
-                .AnalyzeSpendingUsingIAAsync(statementResponse.SpendingDataList)
-                .WaitAsync(TimeSpan.FromSeconds(15));
+                .AnalyzeSpendingUsingIAAsync(statementResponse.SpendingDataList);
         }
         catch (TimeoutException)
         {
-            ApplyIAFallback(statementResponse.SpendingDataList, "Tempo limite excedido (15s)");
+            // Mensagem ajustada para refletir o comportamento dinâmico
+            ApplyIAFallback(statementResponse.SpendingDataList, "Tempo limite excedido pelo provedor de IA");
         }
         catch (Exception ex)
         {
-            // Aqui você pode logar o erro real (ex) se tiver um logger disponível
-            ApplyIAFallback(statementResponse.SpendingDataList, "Erro técnico no serviço de IA");
+            ApplyIAFallback(statementResponse.SpendingDataList, $"Erro técnico no serviço de IA: {ex.Message}");
         }
-        //04  Cria o XLS
+        // 05 - Cria o XLS com os dados atualizados pela IA
         await _statementXlsService.CreatePreFormatedExcelAsync(statementResponse);
         if (System.IO.File.Exists(statementResponse.FilePath))
         {
@@ -1127,6 +1101,20 @@ namespace Server.Api.Domain.Service.ProcessStatementService.Interface
         Objeto StatementResponse contendo os totais e a lista classificada para o Dashboard.</returns>
         Task<StatementResponse> ExecuteOrchestrationAsync(List<IFormFile> files);
     }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Model\AiTransactionResult.cs
+USINGS: 
+==================================================
+/// Classe auxiliar interna para mapear o contrato JSON esperado da resposta da Inteligência Artificial.
+public class AiTransactionResult
+{
+    public string? SuggestedCategory { get; set; }
+    public Double ConfidenceLevel { get; set; }
+    public string? PointOfAttention { get; set; }
+    public string? Reasoning { get; set; }
 }
 
 
@@ -1278,7 +1266,7 @@ public class CsvExtractor : ICsvExtractor
 
 ==================================================
 CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\ExpenseService.cs
-USINGS: Microsoft.AspNetCore.Http, Server.Api.Domain.Service.ProcessStatementService.Model, System.Text, var reader = new StreamReader(_fullPath, detectEncodingFromByteOrderMarks: true)
+USINGS: Microsoft.AspNetCore.Http, Server.Api.Domain.Service.ProcessStatementService.Model, var reader = new StreamReader(_fullPath, detectEncodingFromByteOrderMarks: true)
 ==================================================
 namespace Server.Api.Domain.Service.ExpenseService
 {
@@ -1339,7 +1327,7 @@ namespace Server.Api.Domain.Service.ExpenseService
 
 ==================================================
 CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\FinancialDashboarService.cs
-USINGS: Server.Api.Domain.Service.ProcessStatementService.Enum, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel, Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface, System
+USINGS: Server.Api.Domain.Service.ProcessStatementService.Enum, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel, Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface
 ==================================================
 namespace Server.Domain.Service.StatmentOrchestration.OrchestrationContract
 {
@@ -1379,20 +1367,19 @@ namespace Server.Domain.Service.StatmentOrchestration.OrchestrationContract
 
 ==================================================
 CONTEUDO COMPACTADO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\FinancialIntelligenceService.cs
-USINGS: Core.AI.Contracts.Interfaces, Server.Api.Domain.Service.ProcessStatementService.Enum, Server.Api.Domain.Service.ProcessStatementService.Model, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel, Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface, Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface
+USINGS: Core.Ai.Agent.Models, Core.Ai.Agent.Services.Interfaces, Server.Api.Domain.Service.ProcessStatementService.Enum, Server.Api.Domain.Service.ProcessStatementService.Model, Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel, Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface, Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface
 ==================================================
 public class FinancialIntelligenceService : IFinancialIntelligenceService
 {
     private readonly IExpenseService _expenseService;
-    private readonly IFinancialAiAnalyst _aiAnalyst;
+    private readonly IAiCoreAgentService _aiAgentService;
     private readonly IFinancialDashboardService _financialDashboardService;
-    // Atualize o construtor para receber ambos os serviços
     public FinancialIntelligenceService(IExpenseService expenseService,
-                                        IFinancialAiAnalyst aiAnalyst,
+                                        IAiCoreAgentService aiAgentService,
                                         IFinancialDashboardService financialDashboardService)
     {
         _expenseService = expenseService;
-        _aiAnalyst = aiAnalyst; // Agora o campo deixará de ser nulo
+        _aiAgentService = aiAgentService ?? throw new ArgumentNullException(nameof(aiAgentService));
         _financialDashboardService = financialDashboardService;
     }
     public StatementResponse AnalyzeSpending(List<SpendingData> extractedTransactions, List<Expense> expenses)
@@ -1402,51 +1389,40 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
         {
             if (string.IsNullOrWhiteSpace(item.Subject)) continue;
             string subjectUpper = item.Subject.ToUpper().Trim();
-            // 01. Definição do Tipo Financeiro
-            // BB - Debito é negativo, Crédito é positivo
-            // NUbank - somente tem debito , mas o valor é positivo
             item.IsCredit = false;
             item.IsCredit = subjectUpper.Contains("CRÉDITO") ||
                             subjectUpper.Contains("CREDITO") ||
                             subjectUpper.Contains("DEPÓSITO") ||
                             subjectUpper.Contains("DEPOSITO") ||
                             subjectUpper.Contains("DEVOLVIDO");
-            // 02. Processamento por tipo de fluxo
             Expense expense = new Expense { Origin = null, Category = null, CategoryOwner = null };
             if (item.IsCredit)
             {
-                // Se for crédito, decidimos se é um crédito que nos interessa ou se ignoramos ruído
                 item.FinancialType = IsInternalMovement(subjectUpper)
                     ? FinancialType.Ignore
                     : FinancialType.UnknownCredit;
             }
             else
             {
-                // Se for débito, verificamos se é ruído primeiro
                 if (IsInternalMovement(subjectUpper))
                 {
                     item.FinancialType = FinancialType.Ignore;
                 }
                 else
                 {
-                    // Se for um débito real, buscamos a categoria no CSV
                     expense = DetermineOwner(subjectUpper, expenses);
                     item.FinancialType = MapToFinancialType(expense, item.IsCredit);
                 }
             }
-            // 03. Determinação do Dono baseada no seu expenses.csv
             expense = DetermineOwner(subjectUpper, expenses);
             item.Category = expense.Category;
             item.CategoryOwner = expense.CategoryOwner;
-            // 04. Cálculo do Score
             item.Score = CalculateFinancialImpactScore(item.Value);
-            //05 Ajuste do valor para negativo se for débito
             if (!item.IsCredit)
             {
                 item.Value = -Math.Abs(item.Value);
             }
         }
-        //06 Com tudo processado , geramos os totais para o dashboard
         statementResponse.SpendingDataList = extractedTransactions;
         _financialDashboardService.GerateDashboardTotals(statementResponse);
         return statementResponse;
@@ -1461,13 +1437,31 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
             return spendingList;
         try
         {
-            // 2. Extraímos apenas as descrições (Subject) para enviar à IA
-            var descriptions = pendingItems.Select(x => x.Subject ?? "Transação desconhecida").ToList();
-            // 3. Chamamos a infraestrutura de IA para processar o lote de uma só vez
-            // Note que aqui já usamos o novo método de lote que otimiza o Docker/Ollama
-            var aiResults = (await _aiAnalyst.AnalyzeTransactionBatchAsync(descriptions, ct)).ToList();
-            // 4. Mapeamos os resultados de volta para os nossos objetos de domínio
-            // Usamos um loop indexado para garantir a correspondência da ordem (conforme o prompt exige)
+            // 2. Definição do System Prompt estruturado para forçar o retorno do JSON esperado pela aplicação
+            // Usando Raw String Literals (iniciado por três aspas duplas consecutiveis)
+            // mantem o texto limpo, idêntico a um arquivo de texto comum
+            string systemPrompt = """
+            Atue como um analista financeiro sênior. Você receberá uma lista de descrições de transações bancárias.
+            Analise cada item e retorne estritamente um array JSON contendo objetos com as seguintes propriedades:
+            - "SuggestedCategory": string contendo a categoria sugerida.
+            - "ConfidenceLevel": um valor numérico decimal entre 0.0 e 1.0 representando o nível de certeza (ex: 1.0 para alta, 0.5 para média, 0.2 para baixa).
+            - "Reasoning": string explicativa curta do porquê da categoria.
+            Não adicione textos explicativos ou blocos de Markdown fora do array JSON.
+            """;
+            // 3. Chamamos o novo motor genérico passando a lista e a expressão lambda que extrai a propriedade 'Subject'
+            AiAgentResponse<AiTransactionResult> aiResponse = await _aiAgentService.ProcessBatchAsync<SpendingData, AiTransactionResult>(
+                inputs: pendingItems,
+                systemPrompt: systemPrompt,
+                textExtractor: x => x.Subject ?? "Transação desconhecida",
+                cancellationToken: ct
+            );
+            // 4. Se a biblioteca reportar erro de processamento ou parse, lançamos para o bloco catch tratar
+            if (!aiResponse.IsSuccess)
+            {
+                throw new Exception(aiResponse.ErrorMessage);
+            }
+            var aiResults = aiResponse.Data.ToList();
+            // 5. Mapeamos os resultados estruturados de volta para os nossos objetos de domínio
             for (int i = 0; i < pendingItems.Count; i++)
             {
                 if (i < aiResults.Count)
@@ -1484,13 +1478,11 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
         }
         catch (Exception ex)
         {
-            // Em caso de falha na IA, marcamos os itens para que o utilizador saiba no XLS
             foreach (var item in pendingItems)
             {
                 item.SourceRule = "Erro no processamento IA";
                 item.IAExplanation = ex.Message;
             }
-            // Num cenário sénior, poderíamos fazer um log aqui (ex: Serilog)
         }
         return spendingList;
     }
@@ -1510,16 +1502,15 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
     }
     private bool IsInternalMovement(string subjectUpper)
     {
-        // Se for uma devolução, não devemos ignorar, pois queremos contabilizar o crédito
         if (subjectUpper.Contains("DEVOLVIDO"))
         {
             return false;
         }
         var termsToIgnore = new[]
         {
-        "APLICAÇÃO", "RESGATE", "INVESTIMENTO", "POUPANÇA", "CDB",
-        "SALDO", "S A L D O", "TRANSFERIDO", "PIX TRANSF", "ESTORNO"
-    };
+            "APLICAÇÃO", "RESGATE", "INVESTIMENTO", "POUPANÇA", "CDB",
+            "SALDO", "S A L D O", "TRANSFERIDO", "PIX TRANSF", "ESTORNO"
+        };
         return termsToIgnore.Any(term => subjectUpper.Contains(term));
     }
     private FinancialType MapToFinancialType(Expense expense, bool isCredit)
@@ -1533,7 +1524,6 @@ public class FinancialIntelligenceService : IFinancialIntelligenceService
             case "EXTRA":
                 return FinancialType.ExtraDebit;
             default:
-                // Este bloco agora captura: owner nulo, vazio ou categorias não mapeadas
                 return isCredit ? FinancialType.UnknownCredit : FinancialType.UnknownDebit;
         }
     }
@@ -3229,344 +3219,552 @@ namespace Server.Web.Services.Models.GroupedModel
 
 
 ==================================================
-CONTEUDO COMPACTADO: Shared.Solution\Core.AI.Contracts\Interfaces\IFinancialAiAnalyst.cs
-USINGS: Core.AI.Contracts.Models
-==================================================
-namespace Core.AI.Contracts.Interfaces
-{
-    /// Define as capacidades do Analista Financeiro baseado em IA.
-    /// Esta abstração permite que a infraestrutura seja trocada (ex: Ollama por Azure OpenAI)
-    /// sem alterar a lógica de negócio na camada Core.
-    public interface IFinancialAiAnalyst
-    {
-        /// Processa a descrição de uma única transação para extrair significado semântico.
-        O texto bruto vindo do extrato bancário.</param>
-        Permite interromper a tarefa caso demore muito,
-        /// o que é crítico ao rodar em hardware com limitações térmicas.</param>
-        Um resultado de análise estruturado.</returns>
-        Task<TransactionAnalysisResult> AnalyzeTransactionAsync(
-            string description,
-            CancellationToken cancellationToken = default);
-        /// Processa múltiplas transações em uma única sessão.
-        /// O processamento em lote (batch) costuma ser mais eficiente para o LLM do que várias chamadas individuais.
-        Uma coleção de descrições de transações.</param>
-        Padrão recomendado para operações assíncronas.</param>
-        Uma coleção de resultados de análise mapeados para as entradas.</returns>
-        Task<IEnumerable<TransactionAnalysisResult>> AnalyzeTransactionBatchAsync(
-            IEnumerable<string> descriptions,
-            CancellationToken cancellationToken = default);
-    }
-}
-
-
-==================================================
-CONTEUDO COMPACTADO: Shared.Solution\Core.AI.Contracts\Models\TransactionAnalysisResult.cs
+CONTEUDO COMPACTADO: Shared.Solution\Core.Ai.Agent\Configuration\AiSettings.cs
 USINGS: 
 ==================================================
-namespace Core.AI.Contracts.Models
+namespace Core.IA.Agente.Configuration;
+public class AiSettings
 {
-    /// Representa o resultado estruturado de uma análise financeira feita por IA.
-    /// O uso de um DTO garante que o restante da aplicação não dependa do
-    /// formato de texto bruto (string) retornado pelo modelo de linguagem.
-    public class TransactionAnalysisResult
-    {
-        /// A categoria identificada pela IA (ex: 'Transporte', 'Alimentação', 'Lazer').
-        public string SuggestedCategory { get; set; } = string.Empty;
-        /// Um valor de 0.0 a 1.0 que indica o quão confiante a IA está nesta classificação.
-        /// Útil para sinalizar resultados de baixa confiança que exijam revisão manual.
-        public double ConfidenceLevel { get; set; }
-        /// Uma breve explicação do porquê a IA escolheu esta categoria.
-        /// Auxilia o desenvolvedor e o usuário a entenderem a lógica do modelo.
-        public string Reasoning { get; set; } = string.Empty;
-    }
+    public string Provider { get; set; } = string.Empty;
+    public string DockerUri { get; set; } = string.Empty;
+    public GeminiSettings Gemini { get; set; } = new();
+    public OllamaLocalSettings OllamaLocal { get; set; } = new();
+    public DeepSeekLocalSettings DeepSeekLocal { get; set; } = new();
+}
+public class GeminiSettings
+{
+    public string ApiKey { get; set; } = string.Empty;
+    public int TimeoutSeconds { get; set; }
+}
+public class OllamaLocalSettings
+{
+    public string Uri { get; set; } = string.Empty;
+    public int TimeoutSeconds { get; set; }
+}
+public class DeepSeekLocalSettings
+{
+    public string Uri { get; set; } = string.Empty;
+    public string Model { get; set; } = string.Empty;
+    public int TimeoutSeconds { get; set; }
+    public string KeepAlive { get; set; } = string.Empty;
 }
 
 
 ==================================================
-CONTEUDO COMPACTADO: Shared.Solution\Core.AI.Infrastructure\Configurations\AiPromptsConfiguration.cs
-USINGS: 
+CONTEUDO COMPACTADO: Shared.Solution\Core.Ai.Agent\Drivers\Factory\AiDriverFactory.cs
+USINGS: Core.Ai.Agent.Drivers.Factory.Implementations, Core.Ai.Agent.Drivers.Interfaces, Core.IA.Agente.Configuration
 ==================================================
-namespace Core.AI.Infrastructure.Configurations
+namespace Core.Ai.Agent.Drivers.Factory
 {
-    public static class AiPromptsConfiguration
+    /// Fábrica estática interna responsável pela resolução e criação dos drivers de IA.
+    /// Isola a lógica de decisão sobre qual provedor instanciar, avaliando as opções
+    /// configuradas (AiSettings) e injetando os parâmetros específicos de cada tecnologia.
+    internal static class AiDriverFactory
     {
-        /// Prompt base para análise de transações financeiras.
-        // No AiPromptsConfiguration.cs
-        public const string FinancialAnalystSystemPrompt = @"Você é um analista financeiro rigoroso.
-                                                             Analise as transações enviadas e responda APENAS com um ARRAY de objetos JSON.
-                                                             Exemplo de formato esperado:
-                                                             [
-                                                                { ""suggestedCategory"": ""Saúde"", ""confidenceLevel"": 0.9, ""reasoning"": ""Drogasil identificado"" },
-                                                                { ""suggestedCategory"": ""Transporte"", ""confidenceLevel"": 0.8, ""reasoning"": ""Uber identificado"" }
-                                                             ]
-                                                             Não use markdown, não explique nada.";
-        // Adicione ourtros prompts aqui...
-        // public const string RiskAnalystPrompt = "...";
-    }
-}
-
-
-==================================================
-CONTEUDO COMPACTADO: Shared.Solution\Core.AI.Infrastructure\Services\GeminiFinancialAnalyst.cs
-USINGS: Core.AI.Contracts.Interfaces, Core.AI.Contracts.Models, Core.AI.Infrastructure.Configurations, System.Text, System.Text.Json, var doc = JsonDocument.Parse(rawJson)
-==================================================
-namespace Core.AI.Infrastructure.Services
-{
-    public class GeminiFinancialAnalyst : IFinancialAiAnalyst
-    {
-        private readonly HttpClient _httpClient;
-        private readonly string _apiKey;
-        // Tente esta URL exata. O sufixo ":generateContent" é obrigatório.
-        private const string ApiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
-        public GeminiFinancialAnalyst(string apiKey)
+        /// Avalia o Provedor configurado e retorna a instância correta do driver correspondente.
+        O objeto contendo as credenciais e URIs de configuração da biblioteca.</param>
+        Uma implementação válida da interface interna IAiDriver.</returns>
+        Lançada caso o provedor informado não exista no ecossistema.</exception>
+        public static IAiDriver Create(AiSettings settings)
         {
-            _apiKey = apiKey;
-            _httpClient = new HttpClient();
-        }
-        public async Task<TransactionAnalysisResult> AnalyzeTransactionAsync(string description, CancellationToken ct = default)
-        {
-            var results = await AnalyzeTransactionBatchAsync(new[] { description }, ct);
-            return results.FirstOrDefault() ?? throw new Exception("Gemini falhou em retornar um resultado.");
-        }
-        public async Task<IEnumerable<TransactionAnalysisResult>> AnalyzeTransactionBatchAsync(IEnumerable<string> descriptions, CancellationToken ct = default)
-        {
-            var promptFull = $"{AiPromptsConfiguration.FinancialAnalystSystemPrompt}\n\nTransações: {string.Join(", ", descriptions)}";
-            var payload = new
+            if (settings == null)
+                throw new ArgumentNullException(nameof(settings));
+            // Isolamento da string tratada para avaliação no bloco condicional
+            string providerActive = settings.Provider.Trim().ToLower();
+            switch (providerActive)
             {
-                contents = new[]
-                {
-            new
-            {
-                parts = new[]
-                {
-                    new { text = promptFull }
-                }
+                case "gemini":
+                    return new GeminiDriver(
+                        settings.Gemini.ApiKey,
+                        settings.Gemini.TimeoutSeconds);
+                case "deepseeklocal":
+                    return new DeepSeekDriver(
+                        string.IsNullOrWhiteSpace(settings.DeepSeekLocal.Uri) ? null : new Uri(settings.DeepSeekLocal.Uri),
+                        settings.DeepSeekLocal.Model,
+                        settings.DeepSeekLocal.TimeoutSeconds,
+                        settings.DeepSeekLocal.KeepAlive);
+                case "ollama":
+                case "ollamalocal":
+                    // O agrupamento dos casos elimina a redundância de código existente na versão anterior
+                    return new OllamaDriver(
+                        string.IsNullOrWhiteSpace(settings.DockerUri) ? null : new Uri(settings.DockerUri),
+                        string.IsNullOrWhiteSpace(settings.OllamaLocal.Uri) ? null : new Uri(settings.OllamaLocal.Uri),
+                        settings.OllamaLocal.TimeoutSeconds);
+                default:
+                    throw new NotSupportedException(
+                        $"O provedor de IA '{settings.Provider}' não é suportado pelo Core.Ai.Agent. " +
+                        "Verifique o preenchimento no arquivo de configuração do sistema.");
             }
-        },
-                generationConfig = new
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.Ai.Agent\Drivers\Factory\Implementations\DeepSeekDriver.cs
+USINGS: Core.Ai.Agent.Drivers.Interfaces, System.Text, System.Text.Json, System.Text.RegularExpressions, var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json"), var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken), var doc = JsonDocument.Parse(jsonResponse)
+==================================================
+namespace Core.Ai.Agent.Drivers.Factory.Implementations
+{
+    /// Conector interno customizado para o modelo DeepSeek hospedado na máquina Windows.
+    /// Gerencia a comunicação via rede local, força o determinismo com temperatura zero,
+    /// suporta tempos de carregamento de VRAM estendidos e implementa filtros de Regex.
+    internal class DeepSeekDriver : IAiDriver
+    {
+        private readonly Uri _baseUri;
+        private readonly string _modelName;
+        private readonly int _timeoutSeconds;
+        private readonly string _keepAlive;
+        // HttpClient estático configurado com tempo infinito para que o controle seja feito individualmente por requisição
+        private static readonly HttpClient _httpClient = new HttpClient
+        {
+            Timeout = Timeout.InfiniteTimeSpan
+        };
+        /// Inicializa uma nova instância do driver DeepSeek com suporte a parâmetros dinâmicos de timeout e ciclo de vida na memória.
+        public DeepSeekDriver(Uri? baseUri, string modelName, int timeoutSeconds, string keepAlive)
+        {
+            _baseUri = baseUri ?? new Uri("http://localhost:11434");
+            _modelName = string.IsNullOrWhiteSpace(modelName) ? "deepseek-r1:8b" : modelName;
+            _timeoutSeconds = timeoutSeconds > 0 ? timeoutSeconds : 90;
+            _keepAlive = string.IsNullOrWhiteSpace(keepAlive) ? "5m" : keepAlive;
+        }
+        /// Envia os comandos para a GPU externa e higieniza o retorno textual eliminando as tags de pensamento.
+        public async Task<string> SendPromptAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
+        {
+            string endpoint = $"{_baseUri.ToString().TrimEnd('/')}/api/generate";
+            // Monta o payload nativo do Ollama incluindo a instrução de tempo de permanência em cache (keep_alive)
+            var requestBody = new
+            {
+                model = _modelName,
+                prompt = $"{systemPrompt}\n\nDados para processamento:\n{userPrompt}",
+                stream = false,
+                keep_alive = _keepAlive,
+                options = new
                 {
-                    temperature = 0.2,
-                    // Remova temporariamente o response_mime_type para isolar o problema do 404
+                    temperature = 0.0f // Força o determinismo exigido pelas regras de finanças
                 }
             };
-            var jsonPayload = JsonSerializer.Serialize(payload);
-            // Verifique se não há espaços na _apiKey vinda do appsettings
-            var response = await _httpClient.PostAsync($"{ApiUrl}?key={_apiKey.Trim()}",
-                new StringContent(jsonPayload, Encoding.UTF8, "application/json"), ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorDetail = await response.Content.ReadAsStringAsync(ct);
-                throw new Exception($"Erro na API do Gemini: {response.StatusCode} - {errorDetail}");
-            }
-            var responseBody = await response.Content.ReadAsStringAsync(ct);
-            return ParseGeminiResponse(responseBody);
-        }
-        private IEnumerable<TransactionAnalysisResult> ParseGeminiResponse(string rawJson)
-        {
-            var textResult = doc.RootElement
-                .GetProperty("candidates")[0]
-                .GetProperty("content")
-                .GetProperty("parts")[0]
-                .GetProperty("text").GetString();
-            if (string.IsNullOrWhiteSpace(textResult))
-                return new List<TransactionAnalysisResult>();
-            // Limpeza de possíveis blocos de código Markdown
-            var cleanedJson = textResult.Trim();
-            if (cleanedJson.StartsWith("```json"))
-                cleanedJson = cleanedJson.Replace("```json", "").Replace("```", "").Trim();
-            else if (cleanedJson.StartsWith("```"))
-                cleanedJson = cleanedJson.Replace("```", "").Trim();
-            return JsonSerializer.Deserialize<List<TransactionAnalysisResult>>(cleanedJson, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            }) ?? new List<TransactionAnalysisResult>();
-        }
-    }
-}
-
-
-==================================================
-CONTEUDO COMPACTADO: Shared.Solution\Core.AI.Infrastructure\Services\OllamaFinancialAnalyst.cs
-USINGS: Core.AI.Contracts.Interfaces, Core.AI.Contracts.Models, Core.AI.Infrastructure.Configurations, Docker.DotNet, Docker.DotNet.Models, OllamaSharp, OllamaSharp.Models, System.Text.Json, System.Text.RegularExpressions
-==================================================
-namespace Core.AI.Infrastructure.Services
-{
-    /// Implementação do analista financeiro que orquestra o Docker e o Ollama.
-    /// Esta classe é a "realização" do contrato definido em Core.AI.Contracts.
-    public class OllamaFinancialAnalyst : IFinancialAiAnalyst
-    {
-        private readonly DockerClient _dockerClient;
-        private readonly IOllamaApiClient _ollamaClient;
-        private const string ContainerName = "ollama";
-        /// O construtor recebe as configurações necessárias para os clientes externos.
-        Endereço da API do Docker (ex: npipe://./pipe/docker_engine no Windows).</param>
-        Endereço da API do Ollama (ex: http://localhost:11434).</param>
-        public OllamaFinancialAnalyst(Uri dockerUri, Uri ollamaUri)
-        {
-            _dockerClient = new DockerClientConfiguration(dockerUri).CreateClient();
-            _ollamaClient = new OllamaApiClient(ollamaUri);
-        }
-        /// Analisa uma transação utilizando o modelo Phi-3 Mini e gerencia o ciclo de vida do container.
-        public async Task<TransactionAnalysisResult> AnalyzeTransactionAsync(string description, CancellationToken cancellationToken = default)
-        {
+            string jsonPayload = JsonSerializer.Serialize(requestBody);
+            // Cria um token combinado para aplicar o timeout dinâmico especificado na configuração
+            linkedCts.CancelAfter(TimeSpan.FromSeconds(_timeoutSeconds));
             try
             {
-                // 01. Acorda a I.A no dokers
-                await StartContainerAsync(cancellationToken);
-                #region AI Model Interaction
-                _ollamaClient.SelectedModel = "phi3:mini";
-                // 02. Envia a requisição para o Ollama
-                var request = new GenerateRequest
-                {
-                    Model = _ollamaClient.SelectedModel,                          // Passamos o modelo diretamente no contrato da requisição
-                    System = AiPromptsConfiguration.FinancialAnalystSystemPrompt, // Prompt de sistema para orientar o comportamento da IA
-                    Prompt = $"Transação: {description}",
-                    Stream = false,
-                    Options = new OllamaSharp.Models.RequestOptions               // Opcional: para ajustes finos de temperatura
-                    {
-                        Temperature = 0.3f                                        // Menor temperatura = resposta mais determinística/rígida
-                    }
-                };
-                // 03. Recupera a resposta do modelo (streaming ou completa)
-                var responseStream = _ollamaClient.GenerateAsync(request, cancellationToken);
-                string responseText = string.Empty;
-                await foreach (var item in responseStream.WithCancellation(cancellationToken))
-                {
-                    if (item != null && !string.IsNullOrEmpty(item.Response))
-                    {
-                        responseText += item.Response;
-                    }
-                }
-                var result = new { Response = responseText };
-                // 04. Limpeza da resposta (Remove possíveis blocos de código markdown)
-                string cleanJson = CleanJsonResponse(result.Response);
-                // 05. Desserialização para o DTO
-                var analysis = JsonSerializer.Deserialize<TransactionAnalysisResult>(cleanJson, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-                #endregion AI Model Interaction
-                return analysis ?? throw new Exception("A IA retornou um resultado vazio.");
+                // Dispara a requisição utilizando o token de cancelamento customizado
+                var response = await _httpClient.PostAsync(endpoint, content, linkedCts.Token);
+                response.EnsureSuccessStatusCode();
+                string jsonResponse = await response.Content.ReadAsStringAsync(linkedCts.Token);
+                string? rawResponseText = doc.RootElement.GetProperty("response").GetString();
+                return CleanDeepSeekResponse(rawResponseText ?? "[]");
             }
-            catch (JsonException ex)
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                throw new Exception($"Erro ao interpretar o JSON da IA. Conteúdo bruto: {ex.Message}", ex);
+                throw new TimeoutException($"A requisição para o DeepSeek expirou após o limite configurado de {_timeoutSeconds} segundos durante o processamento ou alocação de VRAM.");
             }
             catch (Exception ex)
             {
-                throw new Exception($"Falha na infraestrutura de IA: {ex.Message}", ex);
-            }
-            finally
-            {
-                // 06. Coloca a I.A no dokers para dormir (garante resfrimento)
-                await StopContainerAsync();
+                throw new Exception($"Falha de comunicação ao acionar a GPU local para o DeepSeek: {ex.Message}", ex);
             }
         }
-        /// Analisa uma transações em lote utilizando o modelo Phi-3 Mini e gerencia o ciclo de vida do container.
-        public async Task<IEnumerable<TransactionAnalysisResult>> AnalyzeTransactionBatchAsync(IEnumerable<string> descriptions, CancellationToken cancellationToken = default)
+        /// Remove blocos latentes de raciocínio (&lt;think&gt;...&lt;/think&gt;) gerados pelo modelo r1.
+        private string CleanDeepSeekResponse(string response)
         {
-            try
-            {
-                // 01. Acorda a I.A uma única vez para o lote inteiro
-                await StartContainerAsync(cancellationToken);
-                // Prepara o prompt com a lista de transações
-                // Usamos Join para criar uma string numerada, facilitando para a IA
-                var formattedDescriptions = string.Join("\n", descriptions.Select((d, i) => $"{i + 1}. {d}"));
-                var batchPrompt = $@"Analise as seguintes transações e retorne um ARRAY de JSON: Transações: {formattedDescriptions}";
-                var request = new GenerateRequest
-                {
-                    Model = "phi3:mini",
-                    System = AiPromptsConfiguration.FinancialAnalystSystemPrompt +
-                             "\nRetorne um JSON array seguindo o esqueleto, um para cada transação na ordem enviada.",
-                    Prompt = batchPrompt,
-                    Stream = false,
-                    Options = new OllamaSharp.Models.RequestOptions { Temperature = 0.2f }
-                };
-                // 02. Envia a requisição única
-                var responseText = "";
-                await foreach (var item in _ollamaClient.GenerateAsync(request, cancellationToken))
-                {
-                    responseText += item.Response;
-                }
-                // 03. Limpeza e Desserialização de uma lista
-                string cleanJson = CleanJsonResponse(responseText);
-                var results = JsonSerializer.Deserialize<List<TransactionAnalysisResult>>(cleanJson, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-                return results ?? new List<TransactionAnalysisResult>();
-            }
-            finally
-            {
-                // 04. Coloca a I.A para dormir após processar tudo
-                await StopContainerAsync();
-            }
+            if (string.IsNullOrWhiteSpace(response)) return "[]";
+            // Remove a tag <think> e todo o conteúdo interpretativo interno gerado pelo modelo R1
+            string withoutThink = Regex.Replace(response, @"<think>.*?</think>", "", RegexOptions.Singleline);
+            // Localiza e isola estritamente o escopo do array JSON [ ... ] para não quebrar o deserializer
+            var match = Regex.Match(withoutThink, @"\[.*\]", RegexOptions.Singleline);
+            return match.Success ? match.Value.Trim() : withoutThink.Trim();
         }
-        #region Helpers
-        /// Método auxiliar para extrair apenas o JSON, caso a IA envie markdown ou textos extras.
-        private string CleanJsonResponse(string response)
-        {
-            // Procura por conteúdo entre chaves { } caso a IA envie lixo ao redor
-            var match = Regex.Match(response, @"\{.*\}", RegexOptions.Singleline);
-            return match.Success ? match.Value : response;
-        }
-        private async Task StartContainerAsync(CancellationToken ct)
-        {
-            // Nota de Estudo: Aqui o DockerClient verifica o estado atual do container
-            // antes de tentar dar o Start, evitando exceções desnecessárias.
-            await _dockerClient.Containers.StartContainerAsync(ContainerName, new ContainerStartParameters(), ct);
-        }
-        private async Task StopContainerAsync()
-        {
-            // Envia o sinal de parada para o container 'ollama'.
-            await _dockerClient.Containers.StopContainerAsync(ContainerName, new ContainerStopParameters { WaitBeforeKillSeconds = 5 });
-        }
-        #endregion Helpers
     }
 }
 
 
 ==================================================
-CONTEUDO COMPACTADO: Shared.Solution\Core.HttpHandleResult\Comon\GenericResponseEnvelope.cs
+CONTEUDO COMPACTADO: Shared.Solution\Core.Ai.Agent\Drivers\Factory\Implementations\GeminiDriver.cs
+USINGS: Core.Ai.Agent.Drivers.Interfaces, System.Text, System.Text.Json, var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json"), var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken), var doc = JsonDocument.Parse(jsonResponse)
+==================================================
+namespace Core.Ai.Agent.Drivers.Factory.Implementations
+{
+    /// Conector interno dedicado à comunicação com os serviços em nuvem do Google Gemini.
+    /// Encapsula a montagem dos payloads de requisição HTTP e a extração do texto retornado
+    /// pela API oficial do Google usando as chaves de acesso configuradas.
+    internal class GeminiDriver : IAiDriver
+    {
+        private readonly string _apiKey;
+        private readonly int _timeoutSeconds;
+        // HttpClient estático com timeout infinito, delegando o controle de expiração para as chamadas individuais
+        private static readonly HttpClient _httpClient = new HttpClient
+        {
+            Timeout = Timeout.InfiniteTimeSpan
+        };
+        /// Inicializa uma nova instância do driver do Gemini recebendo a credencial de acesso e o tempo limite.
+        public GeminiDriver(string apiKey, int timeoutSeconds)
+        {
+            _apiKey = apiKey;
+            _timeoutSeconds = timeoutSeconds > 0 ? timeoutSeconds : 30; // Define 30 segundos como padrão de contingência
+        }
+        /// Envia os prompts via requisição REST para a API do Gemini e extrai a resposta textual.
+        public async Task<string> SendPromptAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(_apiKey))
+            {
+                throw new InvalidOperationException("A Chave de API do Gemini não foi fornecida. Verifique as configurações de segredos.");
+            }
+            // Usaremos o modelo estável padrão para texto estruturado do Gemini
+            string model = "gemini-1.5-flash";
+            string url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={_apiKey}";
+            // Monta o payload no formato exato que a API do Google exige
+            var requestBody = new
+            {
+                systemInstruction = new
+                {
+                    parts = new[] { new { text = systemPrompt } }
+                },
+                contents = new[]
+                {
+                    new
+                    {
+                        parts = new[] { new { text = userPrompt } }
+                    }
+                },
+                generationConfig = new
+                {
+                    responseMimeType = "application/json" // Força o Gemini a responder estritamente em JSON
+                }
+            };
+            string jsonPayload = JsonSerializer.Serialize(requestBody);
+            // Cria um token combinado para aplicar o timeout dinâmico especificado na configuração
+            linkedCts.CancelAfter(TimeSpan.FromSeconds(_timeoutSeconds));
+            try
+            {
+                var response = await _httpClient.PostAsync(url, content, linkedCts.Token);
+                response.EnsureSuccessStatusCode();
+                string jsonResponse = await response.Content.ReadAsStringAsync(linkedCts.Token);
+                // Navega pelo JSON de retorno do Google para extrair apenas o texto da resposta
+                var root = doc.RootElement;
+                string? textResult = root
+                    .GetProperty("candidates")[0]
+                    .GetProperty("content")
+                    .GetProperty("parts")[0]
+                    .GetProperty("text")
+                    .GetString();
+                return textResult ?? "[]";
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new TimeoutException($"A requisição para a API do Gemini expirou após o limite configurado de {_timeoutSeconds} segundos.");
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Erro na comunicação HTTP com o provedor Gemini: {ex.Message}", ex);
+            }
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.Ai.Agent\Drivers\Factory\Implementations\OllamaDriver.cs
+USINGS: Core.Ai.Agent.Drivers.Interfaces, OllamaSharp, OllamaSharp.Models, OllamaSharp.Models.Chat, System.Text, var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)
+==================================================
+namespace Core.Ai.Agent.Drivers.Factory.Implementations
+{
+    /// Conector interno dedicado à comunicação com instâncias locais do Ollama via Docker.
+    /// Gerencia o ciclo de vida e o envio de requisições de texto para os modelos de IA
+    /// hospedados localmente dentro do ecossistema Linux do homelab.
+    internal class OllamaDriver : IAiDriver
+    {
+        private readonly Uri _dockerUri;
+        private readonly Uri _ollamaUri;
+        private readonly int _timeoutSeconds;
+        /// Inicializa uma nova instância do driver do Ollama recebendo os endpoints de rede, container e tempo limite.
+        public OllamaDriver(Uri? dockerUri, Uri? ollamaUri, int timeoutSeconds)
+        {
+            // Define o socket Unix padrão do Linux se nenhum caminho for fornecido
+            _dockerUri = dockerUri ?? new Uri("unix:///var/run/docker.sock");
+            // Define o endereço padrão do Ollama caso não esteja preenchido
+            _ollamaUri = ollamaUri ?? new Uri("http://localhost:11434");
+            _timeoutSeconds = timeoutSeconds > 0 ? timeoutSeconds : 30;
+        }
+        /// Realiza a chamada local para o motor do OllamaSharp e devolve a resposta puramente textual.
+        public async Task<string> SendPromptAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
+        {
+            // Cria um token combinado para aplicar o timeout configurado na chamada assíncrona
+            linkedCts.CancelAfter(TimeSpan.FromSeconds(_timeoutSeconds));
+            try
+            {
+                // Inicializa o cliente apontando para a URI do serviço Ollama HTTP
+                var ollamaClient = new OllamaApiClient(_ollamaUri);
+                // Define o modelo que o Ollama deve carregar na memória do container
+                ollamaClient.SelectedModel = "phi3:mini";
+                // Montamos o histórico contendo o papel do Sistema (System) e do Usuário (User)
+                var chatRequest = new ChatRequest
+                {
+                    Messages = new List<Message>
+                    {
+                        new Message { Role = ChatRole.System, Content = systemPrompt },
+                        new Message { Role = ChatRole.User, Content = userPrompt }
+                    },
+                    Options = new RequestOptions
+                    {
+                        Temperature = 0.0f // Remove a aleatoriedade para garantir a entrega do JSON puro
+                    }
+                };
+                var responseBuilder = new StringBuilder();
+                // Consome o streaming oficial utilizando o token com limite de tempo
+                await foreach (var stream in ollamaClient.ChatAsync(chatRequest, linkedCts.Token))
+                {
+                    if (stream?.Message?.Content != null)
+                    {
+                        responseBuilder.Append(stream.Message.Content);
+                    }
+                }
+                string result = responseBuilder.ToString();
+                return string.IsNullOrWhiteSpace(result) ? "[]" : result.Trim();
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new TimeoutException($"A requisição para o Ollama local expirou após o limite de {_timeoutSeconds} segundos.");
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Falha na comunicação local com o serviço Ollama: {ex.Message}", ex);
+            }
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.Ai.Agent\Drivers\Interfaces\IAiDriver.cs
 USINGS: 
 ==================================================
-namespace Core.HttpHandleResults.Responses {
-    public class GenericResponseEnvelope<T>
+namespace Core.Ai.Agent.Drivers.Interfaces
 {
-    public bool IsSuccess { get; set; }
-    public string Message { get; set; } // Mensagem universal (Sucesso ou Erro)
-    public T? Value { get; set; }       // Dados opcionais (pode ser null)
-    public string? ErrorCode { get; set; }
-    public IEnumerable<string>? Errors { get; set; }
-    // Construtor vazio para serialização
-    public GenericResponseEnvelope()
-    { }
-    // Fábrica para Sucesso (com ou sem dados)
-    public static GenericResponseEnvelope<T> Success(string message, T? value = default)
-        => new()
-        {
-            IsSuccess = true,
-            Message = message,
-            Value = value
-        };
-    // Fábrica para Falha
-    public static GenericResponseEnvelope<T> Failure(string message, string? errorCode = null, IEnumerable<string>? errors = null)
-        => new()
-        {
-            IsSuccess = false,
-            Message = message,
-            ErrorCode = errorCode,
-            Errors = errors
-        };
-}
+    /// Contrato de infraestrutura interno e agnóstico para os conectores de LLM.
+    /// Padroniza a comunicação em nível de texto (prompts) entre o motor central
+    /// e as APIs ou serviços locais (Gemini, Ollama, DeepSeek) sem expor regras de negócio.
+    internal interface IAiDriver
+    {
+        /// Envia os comandos textuais e os dados brutos estruturados para o provedor de IA configurado.
+        As diretrizes de comportamento e restrições que a IA deve seguir.</param>
+        O lote de dados brutos que a aplicação deseja que o modelo processe.</param>
+        Token para cancelamento da requisição de rede caso necessário.</param>
+        Uma string contendo o payload textual bruto (geralmente JSON) retornado pelo LLM.</returns>
+        Task<string> SendPromptAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default);
+    }
 }
 
 
 ==================================================
-CONTEUDO COMPACTADO: Shared.Solution\Core.HttpHandleResult\Middlewares\GlobalExceptionMiddleware.cs
+CONTEUDO COMPACTADO: Shared.Solution\Core.Ai.Agent\Models\AiAgentOptions.cs
+USINGS: 
+==================================================
+namespace Core.Ai.Agent.Models
+{
+    ///<summary
+    ///Objeto simples de transferência de dados (POCO). Ele conterá todas as propriedades
+    ///necessárias para alimentar os diferentes provedores (Gemini, Ollama e DeepSeek).
+    public class AiAgentOptions
+    {
+        /// Define qual provedor de IA será utilizado (ex: "Gemini", "Ollama", "DeepSeekLocal").
+        public string Provider { get; set; } = string.Empty;
+        /// Nome do modelo específico a ser executado no LLM (ex: "deepseek-r1:8b", "phi3:mini").
+        public string ModelName { get; set; } = string.Empty;
+        /// Chave de API para provedores em nuvem (ex: Gemini).
+        public string ApiKey { get; set; } = string.Empty;
+        /// URI base do serviço de IA (ex: http://192.168.0.220:11434 para Ollama/DeepSeek externos).
+        public Uri? BaseUri { get; set; }
+        /// URI do socket do Docker (usado especificamente pelo OllamaDriver legado para controle de container).
+        public Uri? DockerUri { get; set; }
+        /// Temperatura do modelo (0.0 para respostas determinísticas/JSON estável, valores maiores para criatividade).
+        public double Temperature { get; set; } = 0.0;
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.Ai.Agent\Models\AiAgentResponse.cs
+USINGS: 
+==================================================
+namespace Core.Ai.Agent.Models
+{
+    /// Envelope genérico e autossuficiente para padronização de retornos da biblioteca.
+    /// Garante que qualquer aplicação hospedeira receba o status da operação (IsSuccess),
+    /// mensagens de erro isoladas e a coleção de dados tipados (<T>) sem acoplamento externo.
+    public class AiAgentResponse<T> where T : class
+    {
+        /// Indica se o processamento do lote pela IA foi concluído com sucesso e sem exceções.
+        public bool IsSuccess { get; set; }
+        /// Armazena a mensagem detalhada do erro técnico ou de comunicação, caso a operação falhe.
+        public string ErrorMessage { get; set; } = string.Empty;
+        /// Coleção genérica contendo os objetos estruturados e convertidos retornados pelo modelo de IA.
+        public IEnumerable<T> Data { get; set; } = new List<T>();
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.Ai.Agent\Services\AiCoreAgentService.cs
+USINGS: Core.Ai.Agent.Drivers.Factory, Core.Ai.Agent.Drivers.Interfaces, Core.Ai.Agent.Models, Core.Ai.Agent.Services.Interfaces, Core.IA.Agente.Configuration, Microsoft.Extensions.Options, System.Text.Json
+==================================================
+namespace Core.Ai.Agent.Services
+{
+    /// Serviço concreto e público que atua como o motor central de Inteligência Artificial.
+    /// Orquestra a extração de dados brutos, delega a geração do prompt para o driver
+    /// resolvido pela fábrica e encapsula o tratamento de erros e desserialização JSON em um envelope.
+    public class AiCoreAgentService : IAiCoreAgentService
+    {
+        private readonly AiSettings _settings;
+        /// Inicializa o serviço injetando as opções de configuração centralizadas via IOptions.
+        public AiCoreAgentService(IOptions<AiSettings> aiSettingsOptions)
+        {
+            if (aiSettingsOptions == null)
+                throw new ArgumentNullException(nameof(aiSettingsOptions));
+            _settings = aiSettingsOptions.Value;
+        }
+        /// Executa o fluxo agnóstico de processamento de lotes textuais com IA e tratamento de falhas.
+        public async Task<AiAgentResponse<TOut>> ProcessBatchAsync<TIn, TOut>(IEnumerable<TIn> inputs,
+                                                                             string systemPrompt,
+                                                                             Func<TIn, string> textExtractor,
+                                                                             CancellationToken cancellationToken = default) where TOut : class
+        {
+            var response = new AiAgentResponse<TOut>();
+            try
+            {
+                if (inputs == null || !inputs.Any())
+                {
+                    response.IsSuccess = true;
+                    return response;
+                }
+                // 1. Resolve dinamicamente o driver de infraestrutura através da Fábrica interna, fornecendo o objeto de configurações estruturado
+                IAiDriver aiDriver = AiDriverFactory.Create(_settings);
+                // 2. Extrai os textos relevantes dos objetos de entrada usando o delegado mapeado
+                var extractedTexts = inputs.Select(textExtractor);
+                string formattedUserPrompt = string.Join("\n", extractedTexts.Select((text, index) => $"{index + 1}. {text}"));
+                // 3. Dispara a comunicação com o provedor ativo (Gemini, Ollama ou DeepSeek)
+                string rawTextResult = await aiDriver.SendPromptAsync(systemPrompt, formattedUserPrompt, cancellationToken);
+                if (string.IsNullOrWhiteSpace(rawTextResult))
+                {
+                    throw new Exception("O modelo de IA retornou uma resposta em branco ou vazia.");
+                }
+                // 4. Converte o JSON textual bruto de volta para a lista de objetos estruturados pedida
+                var deserializedData = JsonSerializer.Deserialize<List<TOut>>(rawTextResult, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                response.Data = deserializedData ?? new List<TOut>();
+                response.IsSuccess = true;
+            }
+            catch (JsonException jsonEx)
+            {
+                response.IsSuccess = false;
+                response.ErrorMessage = $"Falha crítica ao converter a estrutura JSON da IA para o tipo solicitado ({typeof(TOut).Name}). Erro: {jsonEx.Message}";
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.ErrorMessage = $"Ocorreu um erro operacional no processamento da IA: {ex.Message}";
+            }
+            return response;
+        }
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.Ai.Agent\Services\ServiceCollectionExtensions.cs
+USINGS: Core.IA.Agente.Configuration, Microsoft.Extensions.Configuration, Microsoft.Extensions.DependencyInjection
+==================================================
+namespace Core.IA.Agente.Extensions;
+public static class ServiceCollectionExtensions
+{
+    /// Centraliza o registro e o mapeamento das configurações de Inteligência Artificial.
+    /// Este método vincula a seção 'AiSettings' proveniente do arquivo de configuração do projeto executável (Host)
+    /// à classe fortemente tipada 'AiSettings', disponibilizando as opções via Injeção de Dependência.
+    A coleção de serviços do container de Injeção de Dependência.</param>
+    A interface de configuração que provê acesso aos arquivos JSON ou variáveis de ambiente.</param>
+    A coleção de serviços atualizada para encadeamento de chamadas.</returns>
+    public static IServiceCollection AddAiAgentConfiguration(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<AiSettings>(configuration.GetSection("AiSettings"));
+        return services;
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.Ai.Agent\Services\Interfaces\IAiCoreAgentService.cs
+USINGS: Core.Ai.Agent.Models
+==================================================
+namespace Core.Ai.Agent.Services.Interfaces
+{
+    /// Contrato principal e público do motor de Inteligência Artificial.
+    /// Fornece a porta de entrada para que qualquer aplicação externa envie lotes genéricos
+    /// de dados brutos (&lt;TIn&gt;) e obtenha retornos tipados e estruturados (&lt;TOut&gt;) sem amarras de domínio.
+    public interface IAiCoreAgentService
+    {
+        /// Processa um lote de objetos de forma assíncrona, orquestrando a extração de texto,
+        /// comunicação com o LLM ativo e conversão automática para o objeto de resultado desejado.
+        O tipo de objeto de negócio de entrada que contém as informações brutas.</typeparam>
+        O tipo de objeto estruturado esperado como resultado da análise da IA.</typeparam>
+        A coleção contendo os itens que serão analisados.</param>
+        As regras de negócio e orientações de comportamento que guiarão a IA.</param>
+        Função responsável por isolar a propriedade de texto relevante dentro do tipo TIn.</param>
+        Token opcional para cancelamento da operação de rede.</param>
+        Um envelope AiAgentResponse contendo o status do processamento e a lista convertida de TOut.</returns>
+        Task<AiAgentResponse<TOut>> ProcessBatchAsync<TIn, TOut>(
+            IEnumerable<TIn> inputs,
+            string systemPrompt,
+            Func<TIn, string> textExtractor,
+            CancellationToken cancellationToken = default)
+            where TOut : class;
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.HttpHandleResults\Comon\GenericResponseEnvelope.cs
+USINGS: 
+==================================================
+namespace Core.HttpHandleResults.Responses
+{
+    public class GenericResponseEnvelope<T>
+    {
+        public bool IsSuccess { get; set; }
+        public string Message { get; set; } // Mensagem universal (Sucesso ou Erro)
+        public T? Value { get; set; }       // Dados opcionais (pode ser null)
+        public string? ErrorCode { get; set; }
+        public IEnumerable<string>? Errors { get; set; }
+        // Construtor vazio para serialização
+        public GenericResponseEnvelope()
+        { }
+        // Fábrica para Sucesso (com ou sem dados)
+        public static GenericResponseEnvelope<T> Success(string message, T? value = default)
+            => new()
+            {
+                IsSuccess = true,
+                Message = message,
+                Value = value
+            };
+        // Fábrica para Falha
+        public static GenericResponseEnvelope<T> Failure(string message, string? errorCode = null, IEnumerable<string>? errors = null)
+            => new()
+            {
+                IsSuccess = false,
+                Message = message,
+                ErrorCode = errorCode,
+                Errors = errors
+            };
+    }
+}
+
+
+==================================================
+CONTEUDO COMPACTADO: Shared.Solution\Core.HttpHandleResults\Middlewares\GlobalExceptionMiddleware.cs
 USINGS: Core.HttpHandleResults.Responses, Microsoft.AspNetCore.Http, Microsoft.Extensions.Hosting, Microsoft.Extensions.Logging, System.Net, System.Text.Json
 ==================================================
-namespace Core.Infrastructure.Middlewares
+namespace Core.HttpHandleResults.Middlewares
 {
     /// Middleware global para captura de exceções.
     /// Funciona como uma malha de segurança que envolve toda a aplicação.
@@ -3628,7 +3826,7 @@ namespace Core.Infrastructure.Middlewares
 
 
 ==================================================
-CONTEUDO COMPACTADO: Shared.Solution\Core.HttpHandleResult\Responses\GenericApiErrorResponse.cs
+CONTEUDO COMPACTADO: Shared.Solution\Core.HttpHandleResults\Responses\GenericApiErrorResponse.cs
 USINGS: 
 ==================================================
 namespace Core.HttpHandleResults.Responses

@@ -10,11 +10,12 @@ INDICE GLOBAL DO PROJETO
   - ICsvExtractor
   - IAlert
   - IFinancialService.cs
-  - IFinancialAiAnalyst
+  - IAiDriver
 [DTOs/MODELS]
   - MultiPartResponse
   - ClipboardResponse
   - StatementResponse
+  - AiAgentResponse
   - GenericApiErrorResponse
 [OUTROS]
   - Program
@@ -25,6 +26,7 @@ INDICE GLOBAL DO PROJETO
   - Crypto
   - BankType
   - FinancialType
+  - AiTransactionResult
   - Expense
   - RawBankDetails
   - SpendingData
@@ -48,10 +50,13 @@ INDICE GLOBAL DO PROJETO
   - FinancialDashboard
   - SpendingData
   - StatementResult
-  - TransactionAnalysisResult
-  - AiPromptsConfiguration
-  - GeminiFinancialAnalyst
-  - OllamaFinancialAnalyst
+  - AiSettings
+  - AiDriverFactory
+  - DeepSeekDriver
+  - GeminiDriver
+  - OllamaDriver
+  - AiAgentOptions
+  - ServiceCollectionExtensions
   - GenericResponseEnvelope
   - GlobalExceptionMiddleware
 [SERVICES]
@@ -87,21 +92,22 @@ INDICE GLOBAL DO PROJETO
   - FileService
   - IFileDownloadService
   - IFileService
+  - AiCoreAgentService
+  - IAiCoreAgentService
 
 ==================================================
 MAPA DE DEPENDENCIAS (CONSTRUTORES)
 ==================================================
 FileService
   -> IJSRuntime
+DeepSeekDriver
+  -> Uri?
 FinancialIntelligenceService
   -> IExpenseService
-  -> IFinancialAiAnalyst
+  -> IAiCoreAgentService
   -> IFinancialDashboardService
 StatementService
   -> IDataSanitizerService
-OllamaFinancialAnalyst
-  -> Uri
-  -> Uri
 FileDownloadService
   -> IJSRuntime
 ClipboardController
@@ -128,6 +134,11 @@ StatementController
   -> IStatementXlsService
 FinancialService
   -> HttpClient
+OllamaDriver
+  -> Uri?
+  -> Uri?
+AiCoreAgentService
+  -> IOptions<AiSettings>
 StatementOrchestratorService
   -> IStatementMapperService
   -> IFinancialIntelligenceService
@@ -151,8 +162,7 @@ ARQUIVO: Server.Solution\Server.Api\Program.cs
 TYPE: Outro
 NAMESPACE: Nao detectado
 PATTERNS: Dependency Injection
-WARNINGS: Uso de protocolo HTTP inseguro
-METRICS: Linhas Brutas: 191 | Metodos Estimados: 0 | Async: 0
+METRICS: Linhas Brutas: 163 | Metodos Estimados: 0 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
@@ -164,7 +174,7 @@ PATTERNS: MVC/API Controller
 ENDPOINTS:
   - [HttpPost]
   - [HttpGet]
-METRICS: Linhas Brutas: 52 | Metodos Estimados: 7 | Async: 0
+METRICS: Linhas Brutas: 51 | Metodos Estimados: 7 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
@@ -349,7 +359,7 @@ TYPE: Service
 NAMESPACE: Nao detectado
 DEPENDENCIES: IStatementMapperService, IFinancialIntelligenceService, IStatementService, IExpenseService, IStatementXlsService
 TAGS: [ASYNC]
-METRICS: Linhas Brutas: 103 | Metodos Estimados: 9 | Async: 1
+METRICS: Linhas Brutas: 101 | Metodos Estimados: 9 | Async: 1
 --------------------------------------------------
 
 --------------------------------------------------
@@ -371,6 +381,13 @@ ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Interface\I
 TYPE: Service
 NAMESPACE: Server.Api.Domain.Service.ProcessStatementService.Interface
 METRICS: Linhas Brutas: 20 | Metodos Estimados: 1 | Async: 0
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Model\AiTransactionResult.cs
+TYPE: Outro
+NAMESPACE: Nao detectado
+METRICS: Linhas Brutas: 10 | Metodos Estimados: 5 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
@@ -428,23 +445,23 @@ ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Orchestrati
 TYPE: Service
 NAMESPACE: Server.Api.Domain.Service.ExpenseService
 TAGS: [ASYNC]
-METRICS: Linhas Brutas: 70 | Metodos Estimados: 5 | Async: 2
+METRICS: Linhas Brutas: 69 | Metodos Estimados: 5 | Async: 2
 --------------------------------------------------
 
 --------------------------------------------------
 ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\FinancialDashboarService.cs
 TYPE: Service
 NAMESPACE: Server.Domain.Service.StatmentOrchestration.OrchestrationContract
-METRICS: Linhas Brutas: 44 | Metodos Estimados: 2 | Async: 0
+METRICS: Linhas Brutas: 43 | Metodos Estimados: 2 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
 ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\FinancialIntelligenceService.cs
 TYPE: Service
 NAMESPACE: Nao detectado
-DEPENDENCIES: IExpenseService, IFinancialAiAnalyst, IFinancialDashboardService
+DEPENDENCIES: IExpenseService, IAiCoreAgentService, IFinancialDashboardService
 TAGS: [ASYNC]
-METRICS: Linhas Brutas: 217 | Metodos Estimados: 11 | Async: 1
+METRICS: Linhas Brutas: 223 | Metodos Estimados: 11 | Async: 1
 --------------------------------------------------
 
 --------------------------------------------------
@@ -650,7 +667,7 @@ ARQUIVO: Server.Web.Solution\Server.Web\Services\Implementations\Alert\AlertServ
 TYPE: Service
 NAMESPACE: Nao detectado
 TAGS: [ASYNC]
-METRICS: Linhas Brutas: 93 | Metodos Estimados: 14 | Async: 2
+METRICS: Linhas Brutas: 91 | Metodos Estimados: 14 | Async: 2
 --------------------------------------------------
 
 --------------------------------------------------
@@ -721,63 +738,113 @@ METRICS: Linhas Brutas: 18 | Metodos Estimados: 6 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Shared.Solution\Core.AI.Contracts\Interfaces\IFinancialAiAnalyst.cs
-TYPE: Interface
-NAMESPACE: Core.AI.Contracts.Interfaces
-METRICS: Linhas Brutas: 34 | Metodos Estimados: 1 | Async: 0
+ARQUIVO: Shared.Solution\Core.Ai.Agent\Configuration\AiSettings.cs
+TYPE: Outro
+NAMESPACE: Core.IA.Agente.Configuration
+METRICS: Linhas Brutas: 30 | Metodos Estimados: 17 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Shared.Solution\Core.AI.Contracts\Models\TransactionAnalysisResult.cs
+ARQUIVO: Shared.Solution\Core.Ai.Agent\Drivers\Factory\AiDriverFactory.cs
 TYPE: Outro
-NAMESPACE: Core.AI.Contracts.Models
-METRICS: Linhas Brutas: 27 | Metodos Estimados: 4 | Async: 0
+NAMESPACE: Core.Ai.Agent.Drivers.Factory
+PATTERNS: Factory Pattern
+METRICS: Linhas Brutas: 57 | Metodos Estimados: 2 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Shared.Solution\Core.AI.Infrastructure\Configurations\AiPromptsConfiguration.cs
+ARQUIVO: Shared.Solution\Core.Ai.Agent\Drivers\Factory\Implementations\DeepSeekDriver.cs
 TYPE: Outro
-NAMESPACE: Core.AI.Infrastructure.Configurations
-METRICS: Linhas Brutas: 22 | Metodos Estimados: 3 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Shared.Solution\Core.AI.Infrastructure\Services\GeminiFinancialAnalyst.cs
-TYPE: Outro
-NAMESPACE: Core.AI.Infrastructure.Services
+NAMESPACE: Core.Ai.Agent.Drivers.Factory.Implementations
+DEPENDENCIES: Uri?
 TAGS: [HTTP] [ASYNC]
 TECH: HttpClient
-METRICS: Linhas Brutas: 93 | Metodos Estimados: 8 | Async: 2
+WARNINGS: Uso de protocolo HTTP inseguro
+METRICS: Linhas Brutas: 103 | Metodos Estimados: 9 | Async: 1
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Shared.Solution\Core.AI.Infrastructure\Services\OllamaFinancialAnalyst.cs
+ARQUIVO: Shared.Solution\Core.Ai.Agent\Drivers\Factory\Implementations\GeminiDriver.cs
 TYPE: Outro
-NAMESPACE: Core.AI.Infrastructure.Services
-DEPENDENCIES: Uri, Uri
+NAMESPACE: Core.Ai.Agent.Drivers.Factory.Implementations
+TAGS: [HTTP] [ASYNC]
+TECH: HttpClient
+METRICS: Linhas Brutas: 103 | Metodos Estimados: 6 | Async: 1
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Shared.Solution\Core.Ai.Agent\Drivers\Factory\Implementations\OllamaDriver.cs
+TYPE: Outro
+NAMESPACE: Core.Ai.Agent.Drivers.Factory.Implementations
+DEPENDENCIES: Uri?, Uri?
 TAGS: [ASYNC]
 WARNINGS: Uso de protocolo HTTP inseguro
-METRICS: Linhas Brutas: 178 | Metodos Estimados: 10 | Async: 4
+METRICS: Linhas Brutas: 89 | Metodos Estimados: 6 | Async: 1
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Shared.Solution\Core.HttpHandleResult\Comon\GenericResponseEnvelope.cs
+ARQUIVO: Shared.Solution\Core.Ai.Agent\Drivers\Interfaces\IAiDriver.cs
+TYPE: Interface
+NAMESPACE: Core.Ai.Agent.Drivers.Interfaces
+METRICS: Linhas Brutas: 19 | Metodos Estimados: 1 | Async: 0
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Shared.Solution\Core.Ai.Agent\Models\AiAgentOptions.cs
+TYPE: Outro
+NAMESPACE: Core.Ai.Agent.Models
+WARNINGS: Uso de protocolo HTTP inseguro
+METRICS: Linhas Brutas: 40 | Metodos Estimados: 7 | Async: 0
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Shared.Solution\Core.Ai.Agent\Models\AiAgentResponse.cs
+TYPE: DTO/Model
+NAMESPACE: Core.Ai.Agent.Models
+METRICS: Linhas Brutas: 25 | Metodos Estimados: 4 | Async: 0
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Shared.Solution\Core.Ai.Agent\Services\AiCoreAgentService.cs
+TYPE: Service
+NAMESPACE: Core.Ai.Agent.Services
+DEPENDENCIES: IOptions<AiSettings>
+TAGS: [ASYNC]
+METRICS: Linhas Brutas: 87 | Metodos Estimados: 4 | Async: 1
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Shared.Solution\Core.Ai.Agent\Services\ServiceCollectionExtensions.cs
+TYPE: Outro
+NAMESPACE: Core.IA.Agente.Extensions
+METRICS: Linhas Brutas: 23 | Metodos Estimados: 2 | Async: 0
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Shared.Solution\Core.Ai.Agent\Services\Interfaces\IAiCoreAgentService.cs
+TYPE: Service
+NAMESPACE: Core.Ai.Agent.Services.Interfaces
+METRICS: Linhas Brutas: 30 | Metodos Estimados: 1 | Async: 0
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Shared.Solution\Core.HttpHandleResults\Comon\GenericResponseEnvelope.cs
 TYPE: Outro
 NAMESPACE: Core.HttpHandleResults.Responses
-METRICS: Linhas Brutas: 33 | Metodos Estimados: 9 | Async: 0
+METRICS: Linhas Brutas: 34 | Metodos Estimados: 9 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Shared.Solution\Core.HttpHandleResult\Middlewares\GlobalExceptionMiddleware.cs
+ARQUIVO: Shared.Solution\Core.HttpHandleResults\Middlewares\GlobalExceptionMiddleware.cs
 TYPE: Outro
-NAMESPACE: Core.Infrastructure.Middlewares
+NAMESPACE: Core.HttpHandleResults.Middlewares
 DEPENDENCIES: RequestDelegate, ILogger<GlobalExceptionMiddleware>, IHostEnvironment
 TAGS: [ASYNC]
 METRICS: Linhas Brutas: 83 | Metodos Estimados: 7 | Async: 2
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Shared.Solution\Core.HttpHandleResult\Responses\GenericApiErrorResponse.cs
+ARQUIVO: Shared.Solution\Core.HttpHandleResults\Responses\GenericApiErrorResponse.cs
 TYPE: DTO/Model
 NAMESPACE: Core.HttpHandleResults.Responses
 METRICS: Linhas Brutas: 22 | Metodos Estimados: 9 | Async: 0
