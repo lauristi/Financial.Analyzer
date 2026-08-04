@@ -2,37 +2,31 @@
 INDICE GLOBAL DO PROJETO
 ==================================================
 [CONTROLLERS]
-  - ClipboardController
   - ErrorSimulatorController
   - StatementController
 [INTERFACES]
-  - ICrypto
-  - ICsvExtractor
+  - IBankParser
+  - IFinancialOrchestrator
   - IAlert
   - IFinancialService.cs
   - IAiDriver
 [DTOs/MODELS]
-  - MultiPartResponse
-  - ClipboardResponse
   - StatementResponse
   - AiAgentResponse
   - GenericApiErrorResponse
 [OUTROS]
   - Program
-  - HttpResponseMessageResult
-  - RecoveredData
-  - MappingProfile
-  - Transmition
-  - Crypto
-  - BankType
-  - FinancialType
+  - BankParserFactory
+  - BbBankParser
+  - NubankParser
   - AiTransactionResult
+  - BankType
   - Expense
-  - RawBankDetails
+  - FinancialDashboard
+  - FinancialType
   - SpendingData
   - TransactionModel
-  - FinancialDashboard
-  - CsvExtractor
+  - FinancialOrchestrator
   - ControllerTests
   - StatementControllerTest
   - Program
@@ -60,32 +54,16 @@ INDICE GLOBAL DO PROJETO
   - GenericResponseEnvelope
   - GlobalExceptionMiddleware
 [SERVICES]
-  - BankService
-  - IBankService
-  - InterfaceService
-  - IInterfaceService
   - DataSanitizerService
-  - EncryptionService
-  - HttpClientService
-  - XlsService
   - IDataSanitizerService
-  - IEncryptionService
-  - IHttpClientService
-  - IXlsService
-  - StatementOrchestratorService
-  - IStatementOrchestratorService
-  - ExpenseService
-  - FinancialDashboarService
-  - FinancialIntelligenceService
-  - StatementMapperService
-  - StatementService
-  - StatementXlsService
   - IExpenseService
-  - IFinancialDashboardService
   - IFinancialIntelligenceService
-  - IStatementMapperService
   - IStatementService
   - IStatementXlsService
+  - ExpenseService
+  - FinancialIntelligenceService
+  - StatementService
+  - StatementXlsService
   - FinancialService
   - AlertService
   - FileDownloadService
@@ -98,38 +76,34 @@ INDICE GLOBAL DO PROJETO
 ==================================================
 MAPA DE DEPENDENCIAS (CONSTRUTORES)
 ==================================================
-FileService
-  -> IJSRuntime
-DeepSeekDriver
-  -> Uri?
+BankParserFactory
+  -> IEnumerable<IBankParser>
 FinancialIntelligenceService
   -> IExpenseService
   -> IAiCoreAgentService
-  -> IFinancialDashboardService
 StatementService
+  -> BankParserFactory
+BbBankParser
   -> IDataSanitizerService
+StatementController
+  -> IFinancialOrchestrator
+  -> IExpenseService
+  -> IStatementXlsService
+DeepSeekDriver
+  -> Uri?
 FileDownloadService
   -> IJSRuntime
-ClipboardController
-  -> IEncryptionService
-  -> ILogger<ClipboardController>
-StatementXlsService
-  -> IFinancialDashboardService
-BankService
-  -> IExpenseService
-  -> IXlsService
-  -> IDataSanitizerService
-  -> IFinancialIntelligenceService
-HttpClientService
-  -> HttpClient
 GlobalExceptionMiddleware
   -> RequestDelegate
   -> ILogger<GlobalExceptionMiddleware>
   -> IHostEnvironment
-EncryptionService
-  -> ICrypto
-StatementController
-  -> IStatementOrchestratorService
+NubankParser
+  -> IDataSanitizerService
+FileService
+  -> IJSRuntime
+FinancialOrchestrator
+  -> IFinancialIntelligenceService
+  -> IStatementService
   -> IExpenseService
   -> IStatementXlsService
 FinancialService
@@ -139,14 +113,6 @@ OllamaDriver
   -> Uri?
 AiCoreAgentService
   -> IOptions<AiSettings>
-StatementOrchestratorService
-  -> IStatementMapperService
-  -> IFinancialIntelligenceService
-  -> IStatementService
-  -> IExpenseService
-  -> IStatementXlsService
-HttpResponseMessageResult
-  -> HttpResponseMessage
 
 ==================================================
 FLUXO DE CHAMADAS TEORICO (SUGESTAO DE EXECUCAO)
@@ -162,19 +128,41 @@ ARQUIVO: Server.Solution\Server.Api\Program.cs
 TYPE: Outro
 NAMESPACE: Nao detectado
 PATTERNS: Dependency Injection
-METRICS: Linhas Brutas: 163 | Metodos Estimados: 0 | Async: 0
+METRICS: Linhas Brutas: 143 | Metodos Estimados: 0 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Server.Solution\Server.Api\Controllers\ClipboardController.cs
-TYPE: Controller
-NAMESPACE: Server.Api.Controllers
-DEPENDENCIES: IEncryptionService, ILogger<ClipboardController>
-PATTERNS: MVC/API Controller
-ENDPOINTS:
-  - [HttpPost]
-  - [HttpGet]
-METRICS: Linhas Brutas: 51 | Metodos Estimados: 7 | Async: 0
+ARQUIVO: Server.Solution\Server.Api\BankParsers\BankParserFactory.cs
+TYPE: Outro
+NAMESPACE: Server.Api.Parsers
+DEPENDENCIES: IEnumerable<IBankParser>
+PATTERNS: Factory Pattern
+METRICS: Linhas Brutas: 18 | Metodos Estimados: 4 | Async: 0
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Server.Solution\Server.Api\BankParsers\BbBankParser.cs
+TYPE: Outro
+NAMESPACE: Server.Api.Parsers
+DEPENDENCIES: IDataSanitizerService
+TAGS: [ASYNC]
+METRICS: Linhas Brutas: 65 | Metodos Estimados: 6 | Async: 1
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Server.Solution\Server.Api\BankParsers\IBankParser.cs
+TYPE: Interface
+NAMESPACE: Server.Api.Parsers
+METRICS: Linhas Brutas: 13 | Metodos Estimados: 1 | Async: 0
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Server.Solution\Server.Api\BankParsers\NubankParser.cs
+TYPE: Outro
+NAMESPACE: Server.Api.Parsers
+DEPENDENCIES: IDataSanitizerService
+TAGS: [ASYNC]
+METRICS: Linhas Brutas: 65 | Metodos Estimados: 6 | Async: 1
 --------------------------------------------------
 
 --------------------------------------------------
@@ -193,7 +181,7 @@ METRICS: Linhas Brutas: 59 | Metodos Estimados: 4 | Async: 0
 ARQUIVO: Server.Solution\Server.Api\Controllers\StatementController.cs
 TYPE: Controller
 NAMESPACE: Server.Api.Controllers
-DEPENDENCIES: IStatementOrchestratorService, IExpenseService, IStatementXlsService
+DEPENDENCIES: IFinancialOrchestrator, IExpenseService, IStatementXlsService
 TAGS: [ASYNC]
 PATTERNS: MVC/API Controller
 ENDPOINTS:
@@ -204,346 +192,158 @@ METRICS: Linhas Brutas: 77 | Metodos Estimados: 8 | Async: 3
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Server.Solution\Server.Api\Infrastructure\HttpResponseMessageResult.cs
-TYPE: Outro
+ARQUIVO: Server.Solution\Server.Api\Infrastructure\DataSanitizerService.cs
+TYPE: Service
 NAMESPACE: Server.Api.Infrastructure
-DEPENDENCIES: HttpResponseMessage
-TAGS: [ASYNC]
-METRICS: Linhas Brutas: 42 | Metodos Estimados: 4 | Async: 1
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Api\Infrastructure\MultiPartResponse.cs
-TYPE: DTO/Model
-NAMESPACE: Server.Api.Infrastructure
-METRICS: Linhas Brutas: 19 | Metodos Estimados: 8 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Api\Infrastructure\RecoveredData.cs
-TYPE: Outro
-NAMESPACE: Server.Api.Infrastructure
-METRICS: Linhas Brutas: 17 | Metodos Estimados: 7 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Api\Infrastructure\Mapper\MappingProfile.cs
-TYPE: Outro
-NAMESPACE: Server.Api.Infrastructure.Mapper
-METRICS: Linhas Brutas: 15 | Metodos Estimados: 2 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\ClipboardModels\ClipboardResponse.cs
-TYPE: DTO/Model
-NAMESPACE: Server.Api.Domain.Model
-METRICS: Linhas Brutas: 7 | Metodos Estimados: 2 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\ClipboardModels\Transmition.cs
-TYPE: Outro
-NAMESPACE: Server.Api.Domain.Model
-METRICS: Linhas Brutas: 13 | Metodos Estimados: 3 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\BankService\BankService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.BankService
-DEPENDENCIES: IExpenseService, IXlsService, IDataSanitizerService, IFinancialIntelligenceService
-TAGS: [ASYNC]
-METRICS: Linhas Brutas: 177 | Metodos Estimados: 13 | Async: 1
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\BankService\Interface\IBankService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.BankService.Interface
-METRICS: Linhas Brutas: 9 | Metodos Estimados: 1 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\InterfaceService\InterfaceService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.InterfaceService
-METRICS: Linhas Brutas: 13 | Metodos Estimados: 2 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\InterfaceService\Interface\IInterfaceService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.InterfaceService.Interface
-METRICS: Linhas Brutas: 9 | Metodos Estimados: 2 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\SharedService\Crypto.cs
-TYPE: Outro
-NAMESPACE: Server.Api.Domain.Infrastructure
-METRICS: Linhas Brutas: 72 | Metodos Estimados: 5 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\SharedService\DataSanitizerService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.InfrastrutureService
 METRICS: Linhas Brutas: 87 | Metodos Estimados: 7 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\SharedService\EncryptionService.cs
+ARQUIVO: Server.Solution\Server.Api\Infrastructure\Interface\IDataSanitizerService.cs
 TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.InfrastrutureService
-DEPENDENCIES: ICrypto
-METRICS: Linhas Brutas: 25 | Metodos Estimados: 5 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\SharedService\HttpClientService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.InfrastrutureService
-DEPENDENCIES: HttpClient
-TAGS: [HTTP] [ASYNC]
-TECH: HttpClient
-METRICS: Linhas Brutas: 19 | Metodos Estimados: 4 | Async: 1
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\SharedService\XlsService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.InfrastrutureService
-METRICS: Linhas Brutas: 141 | Metodos Estimados: 5 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\SharedService\Interface\ICrypto.cs
-TYPE: Interface
-NAMESPACE: Server.Api.Domain.Service.SharedService.Interface
-METRICS: Linhas Brutas: 9 | Metodos Estimados: 1 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\SharedService\Interface\IDataSanitizerService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.InfrastrutureService.Interface
+NAMESPACE: Server.Api.Infrastructure.Interface
 METRICS: Linhas Brutas: 17 | Metodos Estimados: 1 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\SharedService\Interface\IEncryptionService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.InfrastrutureService.Interface
-METRICS: Linhas Brutas: 9 | Metodos Estimados: 3 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\SharedService\Interface\IHttpClientService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.InfrastrutureService.Interface
-TAGS: [HTTP]
-TECH: HttpClient
-METRICS: Linhas Brutas: 7 | Metodos Estimados: 1 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\SharedService\Interface\IXlsService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.InfrastrutureService.Interface
-METRICS: Linhas Brutas: 16 | Metodos Estimados: 1 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\StatementOrchestratorService.cs
-TYPE: Service
-NAMESPACE: Nao detectado
-DEPENDENCIES: IStatementMapperService, IFinancialIntelligenceService, IStatementService, IExpenseService, IStatementXlsService
-TAGS: [ASYNC]
-METRICS: Linhas Brutas: 101 | Metodos Estimados: 9 | Async: 1
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Enum\BankType.cs
-TYPE: Outro
-NAMESPACE: Server.Api.Domain.Service.ProcessStatementService.Enum
-METRICS: Linhas Brutas: 12 | Metodos Estimados: 1 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Enum\FinancialType.cs
-TYPE: Outro
-NAMESPACE: Server.Api.Domain.Service.ProcessStatementService.Enum
-METRICS: Linhas Brutas: 15 | Metodos Estimados: 1 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Interface\IStatementOrchestratorService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.ProcessStatementService.Interface
-METRICS: Linhas Brutas: 20 | Metodos Estimados: 1 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Model\AiTransactionResult.cs
+ARQUIVO: Server.Solution\Server.Api\Models\AiTransactionResult.cs
 TYPE: Outro
 NAMESPACE: Nao detectado
 METRICS: Linhas Brutas: 10 | Metodos Estimados: 5 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Model\Expense.cs
+ARQUIVO: Server.Solution\Server.Api\Models\BankType.cs
 TYPE: Outro
-NAMESPACE: Server.Api.Domain.Service.ProcessStatementService.Model
+NAMESPACE: Server.Api.Models
+METRICS: Linhas Brutas: 12 | Metodos Estimados: 1 | Async: 0
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Server.Solution\Server.Api\Models\Expense.cs
+TYPE: Outro
+NAMESPACE: Server.Api.Models
 METRICS: Linhas Brutas: 9 | Metodos Estimados: 4 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Model\RawBankDetails.cs
+ARQUIVO: Server.Solution\Server.Api\Models\FinancialDashboard.cs
 TYPE: Outro
-NAMESPACE: Server_API.Domain.Service.ProcessStatementService.Model
-METRICS: Linhas Brutas: 13 | Metodos Estimados: 3 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Model\SpendingData.cs
-TYPE: Outro
-NAMESPACE: Server.Api.Domain.Service.ProcessStatementService.Model
-METRICS: Linhas Brutas: 44 | Metodos Estimados: 14 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Model\TransactionModel.cs
-TYPE: Outro
-NAMESPACE: Server.Api.Domain.Service.ProcessStatementService.Model
-METRICS: Linhas Brutas: 10 | Metodos Estimados: 5 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Model\GroupedModel\FinancialDashboard.cs
-TYPE: Outro
-NAMESPACE: Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel
+NAMESPACE: Server.Api.Models
 METRICS: Linhas Brutas: 11 | Metodos Estimados: 6 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\Model\GroupedModel\StatementResponse.cs
-TYPE: DTO/Model
-NAMESPACE: Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel
-METRICS: Linhas Brutas: 20 | Metodos Estimados: 6 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\CsvExtractor.cs
+ARQUIVO: Server.Solution\Server.Api\Models\FinancialType.cs
 TYPE: Outro
-NAMESPACE: Nao detectado
+NAMESPACE: Server.Api.Models
+METRICS: Linhas Brutas: 15 | Metodos Estimados: 1 | Async: 0
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Server.Solution\Server.Api\Models\SpendingData.cs
+TYPE: Outro
+NAMESPACE: Server.Api.Models
+METRICS: Linhas Brutas: 42 | Metodos Estimados: 14 | Async: 0
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Server.Solution\Server.Api\Models\StatementResponse.cs
+TYPE: DTO/Model
+NAMESPACE: Server.Api.Models
+METRICS: Linhas Brutas: 18 | Metodos Estimados: 6 | Async: 0
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Server.Solution\Server.Api\Models\TransactionModel.cs
+TYPE: Outro
+NAMESPACE: Server.Api.Models
+METRICS: Linhas Brutas: 10 | Metodos Estimados: 5 | Async: 0
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Server.Solution\Server.Api\Orchestration\FinancialOrchestrator.cs
+TYPE: Outro
+NAMESPACE: Server.Api.Orchestration
+DEPENDENCIES: IFinancialIntelligenceService, IStatementService, IExpenseService, IStatementXlsService
 TAGS: [ASYNC]
-METRICS: Linhas Brutas: 27 | Metodos Estimados: 2 | Async: 1
+METRICS: Linhas Brutas: 109 | Metodos Estimados: 9 | Async: 1
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\ExpenseService.cs
+ARQUIVO: Server.Solution\Server.Api\Orchestration\Interface\IExpenseService.cs
 TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.ExpenseService
-TAGS: [ASYNC]
-METRICS: Linhas Brutas: 69 | Metodos Estimados: 5 | Async: 2
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\FinancialDashboarService.cs
-TYPE: Service
-NAMESPACE: Server.Domain.Service.StatmentOrchestration.OrchestrationContract
-METRICS: Linhas Brutas: 43 | Metodos Estimados: 2 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\FinancialIntelligenceService.cs
-TYPE: Service
-NAMESPACE: Nao detectado
-DEPENDENCIES: IExpenseService, IAiCoreAgentService, IFinancialDashboardService
-TAGS: [ASYNC]
-METRICS: Linhas Brutas: 223 | Metodos Estimados: 11 | Async: 1
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\StatementMapperService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract
-METRICS: Linhas Brutas: 29 | Metodos Estimados: 2 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\StatementService.cs
-TYPE: Service
-NAMESPACE: Nao detectado
-DEPENDENCIES: IDataSanitizerService
-TAGS: [ASYNC]
-METRICS: Linhas Brutas: 181 | Metodos Estimados: 7 | Async: 4
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\StatementXlsService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.InfrastrutureService
-DEPENDENCIES: IFinancialDashboardService
-TAGS: [ASYNC]
-METRICS: Linhas Brutas: 404 | Metodos Estimados: 13 | Async: 2
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\Interface\ICsvExtractor.cs
-TYPE: Interface
-NAMESPACE: Nao detectado
-METRICS: Linhas Brutas: 8 | Metodos Estimados: 1 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\Interface\IExpenseService.cs
-TYPE: Service
-NAMESPACE: Nao detectado
+NAMESPACE: Server.Api.Services.Interfaces
 METRICS: Linhas Brutas: 11 | Metodos Estimados: 1 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\Interface\IFinancialDashboardService.cs
+ARQUIVO: Server.Solution\Server.Api\Orchestration\Interface\IFinancialIntelligenceService.cs
 TYPE: Service
-NAMESPACE: Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface
-METRICS: Linhas Brutas: 9 | Metodos Estimados: 1 | Async: 0
+NAMESPACE: Server.Api.Orchestration.Interface
+METRICS: Linhas Brutas: 13 | Metodos Estimados: 1 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\Interface\IFinancialIntelligenceService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface
-METRICS: Linhas Brutas: 12 | Metodos Estimados: 1 | Async: 0
+ARQUIVO: Server.Solution\Server.Api\Orchestration\Interface\IFinancialOrchestrator.cs
+TYPE: Interface
+NAMESPACE: Server.Api.Orchestration.Interface
+METRICS: Linhas Brutas: 20 | Metodos Estimados: 1 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\Interface\IStatementMapperService.cs
+ARQUIVO: Server.Solution\Server.Api\Orchestration\Interface\IStatementService.cs
 TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract.Interface
-METRICS: Linhas Brutas: 12 | Metodos Estimados: 1 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\Interface\IStatementService.cs
-TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface
+NAMESPACE: Server.Api.Orchestration.Interface
 METRICS: Linhas Brutas: 16 | Metodos Estimados: 1 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
-ARQUIVO: Server.Solution\Server.Domain\Service\StatmentOrchestration\OrchestrationContract\Interface\IStatementXlsService.cs
+ARQUIVO: Server.Solution\Server.Api\Orchestration\Interface\IStatementXlsService.cs
 TYPE: Service
-NAMESPACE: Server.Api.Domain.Service.InfrastrutureService.Interface
+NAMESPACE: Server.Api.Orchestration.Interface
 METRICS: Linhas Brutas: 18 | Metodos Estimados: 1 | Async: 0
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Server.Solution\Server.Api\Orchestration\Services\ExpenseService.cs
+TYPE: Service
+NAMESPACE: Server.Api.Services
+TAGS: [ASYNC]
+METRICS: Linhas Brutas: 74 | Metodos Estimados: 5 | Async: 2
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Server.Solution\Server.Api\Orchestration\Services\FinancialIntelligenceService.cs
+TYPE: Service
+NAMESPACE: Server.Api.Services
+DEPENDENCIES: IExpenseService, IAiCoreAgentService
+TAGS: [ASYNC]
+METRICS: Linhas Brutas: 229 | Metodos Estimados: 11 | Async: 1
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Server.Solution\Server.Api\Orchestration\Services\StatementService.cs
+TYPE: Service
+NAMESPACE: Server.Api.Orchestration.Contracts
+DEPENDENCIES: BankParserFactory
+TAGS: [ASYNC]
+METRICS: Linhas Brutas: 64 | Metodos Estimados: 4 | Async: 1
+--------------------------------------------------
+
+--------------------------------------------------
+ARQUIVO: Server.Solution\Server.Api\Orchestration\Services\StatementXlsService.cs
+TYPE: Service
+NAMESPACE: Server.Api.Orchestration.Contracts
+TAGS: [ASYNC]
+METRICS: Linhas Brutas: 395 | Metodos Estimados: 12 | Async: 2
 --------------------------------------------------
 
 --------------------------------------------------
 ARQUIVO: Server.Solution\Server.Tests\ControllerTests.cs
 TYPE: Outro
 NAMESPACE: Server.Api.Tests
-TAGS: [ASYNC]
-METRICS: Linhas Brutas: 71 | Metodos Estimados: 8 | Async: 3
+METRICS: Linhas Brutas: 7 | Metodos Estimados: 0 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------

@@ -6,11 +6,28 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Remove="ClipboardModels\**" />
+    <Compile Remove="Orchestration\Enum\**" />
+    <Content Remove="ClipboardModels\**" />
+    <Content Remove="Orchestration\Enum\**" />
+    <EmbeddedResource Remove="ClipboardModels\**" />
+    <EmbeddedResource Remove="Orchestration\Enum\**" />
+    <None Remove="ClipboardModels\**" />
+    <None Remove="Orchestration\Enum\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Infrastructure\Interface\ICrypto.cs" />
+    <Compile Remove="Orchestration\Services\FinancialDashboarService.cs" />
+  </ItemGroup>
+
   <!--<ItemGroup>
       <Compile Remove="WeatherForecast.cs" />
    </ItemGroup>-->
 
 	<ItemGroup>
+		<PackageReference Include="EPPlus" Version="8.6.3" />
 		<PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.1" />
 		<PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="10.2.1" />
@@ -19,7 +36,6 @@
 	<ItemGroup>
     <ProjectReference Include="..\..\Shared.Solution\Core.Ai.Agent\Core.Ai.Agent.csproj" />
     <ProjectReference Include="..\..\Shared.Solution\Core.HttpHandleResults\Core.HttpHandleResults.csproj" />
-    <ProjectReference Include="..\Server.Domain\Server.Domain.csproj" />
   </ItemGroup>
 
 </Project>

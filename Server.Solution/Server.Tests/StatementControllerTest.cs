@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Server.Api.Controllers;
-using Server.Api.Domain.Service.InfrastrutureService.Interface;
-using Server.Api.Domain.Service.ProcessStatementService.Interface;
-using Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel;
+using Server.Api.Models;
+using Server.Api.Orchestration.Interface;
+using Server.Api.Services.Interfaces;
 using System.Text;
 
 namespace Server.Api.Tests

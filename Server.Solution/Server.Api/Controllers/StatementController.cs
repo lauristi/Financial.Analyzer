@@ -1,18 +1,18 @@
 ﻿using Core.HttpHandleResults.Responses;
 using Microsoft.AspNetCore.Mvc;
-using Server.Api.Domain.Service.InfrastrutureService.Interface;
-using Server.Api.Domain.Service.ProcessStatementService.Interface;
-using Server.Api.Domain.Service.StatmentOrchestration.Model.GroupedModel;
+using Server.Api.Models;
+using Server.Api.Orchestration.Interface;
+using Server.Api.Services.Interfaces;
 
 namespace Server.Api.Controllers
 {
     public class StatementController : Controller
     {
-        private readonly IStatementOrchestratorService _statementOrchestratorService;
+        private readonly IFinancialOrchestrator _statementOrchestratorService;
         private readonly IExpenseService _expenseService;
         private readonly IStatementXlsService _iStatementXlsService;
 
-        public StatementController(IStatementOrchestratorService statementOrchestratorService,
+        public StatementController(IFinancialOrchestrator statementOrchestratorService,
                                    IExpenseService expenseService,
                                     IStatementXlsService statementXlsService)
         {

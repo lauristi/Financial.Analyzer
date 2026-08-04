@@ -5,24 +5,19 @@ using Core.IA.Agente.Extensions;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.OpenApi;
-using Server.Api.Domain.Infrastructure.EncryptionLib;
-using Server.Api.Domain.Service.BankService;
-using Server.Api.Domain.Service.BankService.Interface;
-using Server.Api.Domain.Service.ExpenseService;
-using Server.Api.Domain.Service.InfrastrutureService;
-using Server.Api.Domain.Service.InfrastrutureService.Interface;
-using Server.Api.Domain.Service.ProcessStatementService.Interface;
-using Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract;
-using Server.Api.Domain.Service.ProcessStatementService.OrchestrationContract.Interface;
-using Server.Api.Domain.Service.SharedService.Interface;
-using Server.Api.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
-using Server.Domain.Service.StatmentOrchestration.OrchestrationContract;
-using Server.Domain.Service.StatmentOrchestration.OrchestrationContract.Interface;
+using Server.Api.Infrastructure;
+using Server.Api.Infrastructure.Interface;
+using Server.Api.Orchestration;
+using Server.Api.Orchestration.Contracts;
+using Server.Api.Orchestration.Interface;
+using Server.Api.Parsers;
+using Server.Api.Services;
+using Server.Api.Services.Interfaces;
 using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Registro de provedor para suporte a codificação Latin1 (comum em arquivos bancários)
+// Registro de provedor para suporte a codificação Latin1 (ISO-8859-1)
 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
 #region 01. Configurações de Infraestrutura e Host (Kestrel/Logs)
@@ -32,10 +27,8 @@ builder.Logging.AddConsole();
 
 var configuration = builder.Configuration;
 var appRootPath = builder.Environment.ContentRootPath;
-
 var apiBaseAddress = configuration["ConnectionSettings:ApiBaseAddress"]
     ?? throw new InvalidOperationException("ConnectionSettings:ApiBaseAddress não configurado");
-
 var bindPort = int.Parse(configuration["ConnectionSettings:BindPort"] ?? "5020");
 
 builder.WebHost.ConfigureKestrel(options =>
@@ -50,49 +43,37 @@ if (!builder.Environment.IsDevelopment())
 
 #endregion 01. Configurações de Infraestrutura e Host (Kestrel/Logs)
 
-#region 02. Injeção de Dependência e AutoMapper
+#region 02. Parsers de Extratos Bancários
 
-builder.Services.AddSingleton<ICrypto, Crypto>();
-builder.Services.AddSingleton<IEncryptionService, EncryptionService>();
+builder.Services.AddScoped<IBankParser, BbBankParser>();
+builder.Services.AddScoped<IBankParser, NubankParser>();
+builder.Services.AddScoped<BankParserFactory>();
 
-// --- Serviços de Domínio ---
+#endregion 02. Parsers de Extratos Bancários
+
+#region 03. Serviços do Domínio
+
 builder.Services.AddScoped<IDataSanitizerService, DataSanitizerService>();
-builder.Services.AddScoped<IXlsService, XlsService>();
-builder.Services.AddScoped<IBankService, BankService>();
-builder.Services.AddScoped<IFinancialIntelligenceService, FinancialIntelligenceService>();
 builder.Services.AddScoped<IExpenseService>(sp => new ExpenseService(appRootPath));
 builder.Services.AddScoped<IStatementService, StatementService>();
-builder.Services.AddScoped<IStatementMapperService, StatementMapperService>();
-builder.Services.AddScoped<IStatementOrchestratorService, StatementOrchestratorService>();
+builder.Services.AddScoped<IFinancialIntelligenceService, FinancialIntelligenceService>();
+builder.Services.AddScoped<IStatementXlsService>(sp => new StatementXlsService(appRootPath));
+builder.Services.AddScoped<IFinancialOrchestrator, FinancialOrchestrator>();
 
-#endregion 02. Injeção de Dependência e AutoMapper
+#endregion 03. Serviços do Domínio
 
-#region 03. Injeção de dependencia com Factory
+#region 04. Injeção de Dependência para IA (Analista Financeiro)
 
-// Registro base: essencial para que o IntelligenceService e o XlsService funcionem
-builder.Services.AddScoped<IFinancialDashboardService, FinancialDashboarService>();
-
-// Registro do Serviço de Excel utilizando uma "Factory" (Fábrica) customizada.
-builder.Services.AddScoped<IStatementXlsService>(sp =>
-{
-    var dashboardService = sp.GetRequiredService<IFinancialDashboardService>();
-    return new StatementXlsService(appRootPath, dashboardService);
-});
-
-#endregion 03. Injeção de dependencia com Factory
-
-#region 04. Injecao de Dependência para Analista Financeiro de IA
-
-// 1. Garante a leitura do seu arquivo externo de credenciais locais e de nuvem
+// 1. Garante a leitura do arquivo externo de credenciais
 builder.Configuration.AddJsonFile("appsettings.Secrets.json", optional: true, reloadOnChange: true);
 
-// 2. Registra as configurações de IA centralizadas na Class Library (Core.IA.Agente)
+// 2. Registra as configurações de IA centralizadas na Class Library
 builder.Services.AddAiAgentConfiguration(builder.Configuration);
 
 // 3. Registra o serviço de IA no container do .NET
 builder.Services.AddScoped<IAiCoreAgentService, AiCoreAgentService>();
 
-#endregion 04. Injecao de Dependência para Analista Financeiro de IA
+#endregion 04. Injeção de Dependência para IA (Analista Financeiro)
 
 #region 05. Configurações de Controladores e JSON
 
@@ -154,9 +135,8 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 });
 
 app.MapControllers();
-
 app.MapGet("/", () => Results.Redirect("/swagger/index.html"))
-                             .ExcludeFromDescription();
+    .ExcludeFromDescription();
 
 #endregion 07. Pipeline de Middlewares (Configuração do App)
 
