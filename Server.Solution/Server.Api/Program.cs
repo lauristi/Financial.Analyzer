@@ -5,6 +5,7 @@ using Core.IA.Agente.Extensions;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.OpenApi;
+using OfficeOpenXml;
 using Server.Api.Infrastructure;
 using Server.Api.Infrastructure.Interface;
 using Server.Api.Orchestration;
@@ -19,6 +20,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Registro de provedor para suporte a codificação Latin1 (ISO-8859-1)
 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+
+
+// Define a licença não comercial no EPPlus 8+
+ExcelPackage.License.SetNonCommercialPersonal("Hal");
+
 
 #region 01. Configurações de Infraestrutura e Host (Kestrel/Logs)
 

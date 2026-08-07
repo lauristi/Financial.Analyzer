@@ -29,9 +29,7 @@ namespace Server.Api.Orchestration.Contracts
 
             FileInfo fileInfo = new FileInfo(statementResponse.FilePath);
             if (!PrepareXlsEnviroment(fileInfo)) return null;
-
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-
+                        
             using (var package = new ExcelPackage(fileInfo))
             {
                 var worksheet = package.Workbook.Worksheets.Add("Lançamentos");
@@ -120,9 +118,7 @@ namespace Server.Api.Orchestration.Contracts
             using var stream = new MemoryStream();
             await file.CopyToAsync(stream);
             stream.Position = 0; // Reset fundamental para leitura
-
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-
+                        
             using (var package = new ExcelPackage(stream))
             {
                 if (package.Workbook.Worksheets.Count == 0) return null;
@@ -336,7 +332,11 @@ namespace Server.Api.Orchestration.Contracts
                     {
                         try
                         {
-                            file.Delete();
+                            // Preserva o banco de dados de despesas fixas e apaga apenas relatórios gerados
+                            if (!file.Name.StartsWith("expense", StringComparison.OrdinalIgnoreCase))
+                            {
+                                file.Delete();
+                            }
                         }
                         catch (IOException)
                         {

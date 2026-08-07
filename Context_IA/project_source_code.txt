@@ -1,10 +1,12 @@
 ﻿==================================================
 CONTEUDO COMPACTADO: Server.Solution\Server.Api\Program.cs
-USINGS: Core.Ai.Agent.Services, Core.Ai.Agent.Services.Interfaces, Core.HttpHandleResults.Middlewares, Core.IA.Agente.Extensions, Microsoft.AspNetCore.HttpOverrides, Microsoft.AspNetCore.Localization, Microsoft.OpenApi, Server.Api.Infrastructure, Server.Api.Infrastructure.Interface, Server.Api.Orchestration, Server.Api.Orchestration.Contracts, Server.Api.Orchestration.Interface, Server.Api.Parsers, Server.Api.Services, Server.Api.Services.Interfaces, System.Globalization
+USINGS: Core.Ai.Agent.Services, Core.Ai.Agent.Services.Interfaces, Core.HttpHandleResults.Middlewares, Core.IA.Agente.Extensions, Microsoft.AspNetCore.HttpOverrides, Microsoft.AspNetCore.Localization, Microsoft.OpenApi, OfficeOpenXml, Server.Api.Infrastructure, Server.Api.Infrastructure.Interface, Server.Api.Orchestration, Server.Api.Orchestration.Contracts, Server.Api.Orchestration.Interface, Server.Api.Parsers, Server.Api.Services, Server.Api.Services.Interfaces, System.Globalization
 ==================================================
 var builder = WebApplication.CreateBuilder(args);
 // Registro de provedor para suporte a codificação Latin1 (ISO-8859-1)
 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+// Define a licença não comercial no EPPlus 8+
+ExcelPackage.License.SetNonCommercialPersonal("Hal");
 #region 01. Configurações de Infraestrutura e Host (Kestrel/Logs)
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
@@ -322,7 +324,7 @@ namespace Server.Api.Controllers
         [Route("api/statement/processCsv")]
         public async Task<IActionResult> ProcessCsv(List<IFormFile> files)
         {
-            if (files == null || !files.Any())
+             if (files == null || !files.Any())
             {
                 return BadRequest(GenericResponseEnvelope<StatementResponse>.Failure("Nenhum arquivo enviado.", "NO_FILES"));
             }
@@ -813,7 +815,6 @@ namespace Server.Api.Services
                 return expenses;
             }
             FileInfo fileInfo = new FileInfo(_filePath);
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             using (var package = new ExcelPackage(fileInfo))
             {
                 await package.LoadAsync(fileInfo);
@@ -1126,7 +1127,6 @@ namespace Server.Api.Orchestration.Contracts
             statementResponse.FilePath = Path.Combine(_fullPath, CreateXlsArchiveName("preForm", statementResponse.SpendingDataList));
             FileInfo fileInfo = new FileInfo(statementResponse.FilePath);
             if (!PrepareXlsEnviroment(fileInfo)) return null;
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             using (var package = new ExcelPackage(fileInfo))
             {
                 var worksheet = package.Workbook.Worksheets.Add("Lançamentos");
@@ -1194,7 +1194,6 @@ namespace Server.Api.Orchestration.Contracts
             #region 01.Carrega o arquivo enviado para a memória
             await file.CopyToAsync(stream);
             stream.Position = 0; // Reset fundamental para leitura
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             using (var package = new ExcelPackage(stream))
             {
                 if (package.Workbook.Worksheets.Count == 0) return null;
@@ -1418,93 +1417,6 @@ namespace Server.Api.Orchestration.Contracts
             return "00-MONTH.xlsx";
         }
         #endregion Helpers
-    }
-}
-
-
-==================================================
-CONTEUDO COMPACTADO: Server.Solution\Server.Tests\ControllerTests.cs
-USINGS: Microsoft.AspNetCore.Mvc, Microsoft.Extensions.Logging, Moq
-==================================================
-namespace Server.Api.Tests
-{
-}
-
-
-==================================================
-CONTEUDO COMPACTADO: Server.Solution\Server.Tests\StatementControllerTest.cs
-USINGS: Core.HttpHandleResults.Responses, Microsoft.AspNetCore.Http, Microsoft.AspNetCore.Mvc, Moq, Server.Api.Controllers, Server.Api.Models, Server.Api.Orchestration.Interface, Server.Api.Services.Interfaces, System.Text
-==================================================
-namespace Server.Api.Tests
-{
-    public class StatementControllerTests
-    {
-        private readonly Mock<IStatementOrchestratorService> _orchestratorMock;
-        private readonly Mock<IExpenseService> _expenseServiceMock;
-        private readonly Mock<IStatementXlsService> _xlsServiceMock;
-        private readonly StatementController _controller;
-        public StatementControllerTests()
-        {
-            _orchestratorMock = new Mock<IStatementOrchestratorService>();
-            _expenseServiceMock = new Mock<IExpenseService>();
-            _xlsServiceMock = new Mock<IStatementXlsService>();
-            // Resolvendo o erro CS7036: Passando os 3 parâmetros requeridos
-            _controller = new StatementController(
-                _orchestratorMock.Object,
-                _expenseServiceMock.Object,
-                _xlsServiceMock.Object);
-        }
-        [Fact]
-        public async Task ProcessCsv_ShouldReturnBadRequest_WhenNoFilesSent()
-        {
-            // Act
-            var result = await _controller.ProcessCsv(new List<IFormFile>());
-            // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            var envelope = Assert.IsType<GenericResponseEnvelope<StatementResponse>>(badRequestResult.Value);
-            Assert.False(envelope.IsSuccess);
-            Assert.Equal("NO_FILES", envelope.ErrorCode);
-        }
-        [Fact]
-        public async Task UploadExpenses_ShouldReturnOk_WhenFileIsValid()
-        {
-            // Arrange
-            var content = "date,description,amount\n2026-03-20,Test,100";
-            var fileName = "expenses.csv";
-            var stream = new MemoryStream(Encoding.UTF8.GetBytes(content));
-            // Criando o FormFile corretamente para evitar erros de parâmetro
-            var file = new FormFile(stream, 0, stream.Length, "file", fileName)
-            {
-                Headers = new HeaderDictionary(),
-                ContentType = "text/csv"
-            };
-            _expenseServiceMock.Setup(s => s.SaveFileAsync(It.IsAny<IFormFile>()))
-                               .Returns(Task.CompletedTask);
-            // Act
-            var result = await _controller.UploadExpenses(file);
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var envelope = Assert.IsType<GenericResponseEnvelope<string>>(okResult.Value);
-            Assert.True(envelope.IsSuccess);
-            _expenseServiceMock.Verify(s => s.SaveFileAsync(It.IsAny<IFormFile>()), Times.Once);
-        }
-        [Fact]
-        public async Task ProcessXls_ShouldReturnOk_WhenFileIsValid()
-        {
-            // Arrange
-            var stream = new MemoryStream(Encoding.UTF8.GetBytes("fake excel content"));
-            var file = new FormFile(stream, 0, stream.Length, "file", "test.xlsx");
-            var expectedResponse = new StatementResponse(); // Ajuste se houver construtor específico
-            _xlsServiceMock.Setup(s => s.CreateFinalExcelAsync(It.IsAny<IFormFile>()))
-                           .ReturnsAsync(expectedResponse);
-            // Act
-            var result = await _controller.ProcessXls(file);
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var envelope = Assert.IsType<GenericResponseEnvelope<StatementResponse>>(okResult.Value);
-            Assert.True(envelope.IsSuccess);
-            Assert.Equal("Extratos processados com sucesso.", envelope.Message);
-        }
     }
 }
 

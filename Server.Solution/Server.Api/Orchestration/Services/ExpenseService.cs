@@ -10,8 +10,8 @@ namespace Server.Api.Services
 
         public ExpenseService(string appRootPath)
         {
-            // Aponta diretamente para a pasta Archives/despesas_fixas.xlsx
-            _filePath = Path.Combine(appRootPath, "Archives", "despesas_fixas.xlsx");
+            // Aponta diretamente para a pasta Archives/expenses.xlsx
+            _filePath = Path.Combine(appRootPath, "Archives", "expenses.xlsx");
         }
 
         public async Task<List<Expense>> GetAll()
@@ -24,8 +24,7 @@ namespace Server.Api.Services
             }
 
             FileInfo fileInfo = new FileInfo(_filePath);
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-
+            
             using (var package = new ExcelPackage(fileInfo))
             {
                 await package.LoadAsync(fileInfo);

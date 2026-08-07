@@ -38,4 +38,8 @@
     <ProjectReference Include="..\..\Shared.Solution\Core.HttpHandleResults\Core.HttpHandleResults.csproj" />
   </ItemGroup>
 
+	<ItemGroup>
+	  <Folder Include="Archives\" />
+	</ItemGroup>
+
 </Project>

@@ -27,8 +27,6 @@ INDICE GLOBAL DO PROJETO
   - SpendingData
   - TransactionModel
   - FinancialOrchestrator
-  - ControllerTests
-  - StatementControllerTest
   - Program
   - BankStatementPage.razor
   - StatementOrchestratorPage.razor
@@ -128,7 +126,7 @@ ARQUIVO: Server.Solution\Server.Api\Program.cs
 TYPE: Outro
 NAMESPACE: Nao detectado
 PATTERNS: Dependency Injection
-METRICS: Linhas Brutas: 143 | Metodos Estimados: 0 | Async: 0
+METRICS: Linhas Brutas: 149 | Metodos Estimados: 0 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
@@ -310,7 +308,7 @@ ARQUIVO: Server.Solution\Server.Api\Orchestration\Services\ExpenseService.cs
 TYPE: Service
 NAMESPACE: Server.Api.Services
 TAGS: [ASYNC]
-METRICS: Linhas Brutas: 74 | Metodos Estimados: 5 | Async: 2
+METRICS: Linhas Brutas: 73 | Metodos Estimados: 5 | Async: 2
 --------------------------------------------------
 
 --------------------------------------------------
@@ -336,22 +334,7 @@ ARQUIVO: Server.Solution\Server.Api\Orchestration\Services\StatementXlsService.c
 TYPE: Service
 NAMESPACE: Server.Api.Orchestration.Contracts
 TAGS: [ASYNC]
-METRICS: Linhas Brutas: 395 | Metodos Estimados: 12 | Async: 2
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Tests\ControllerTests.cs
-TYPE: Outro
-NAMESPACE: Server.Api.Tests
-METRICS: Linhas Brutas: 7 | Metodos Estimados: 0 | Async: 0
---------------------------------------------------
-
---------------------------------------------------
-ARQUIVO: Server.Solution\Server.Tests\StatementControllerTest.cs
-TYPE: Outro
-NAMESPACE: Server.Api.Tests
-TAGS: [ASYNC]
-METRICS: Linhas Brutas: 96 | Metodos Estimados: 9 | Async: 3
+METRICS: Linhas Brutas: 391 | Metodos Estimados: 12 | Async: 2
 --------------------------------------------------
 
 --------------------------------------------------

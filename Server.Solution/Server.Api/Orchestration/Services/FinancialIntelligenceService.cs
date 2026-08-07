@@ -34,7 +34,11 @@ namespace Server.Api.Services
                                 subjectUpper.Contains("CREDITO") ||
                                 subjectUpper.Contains("DEPÓSITO") ||
                                 subjectUpper.Contains("DEPOSITO") ||
-                                subjectUpper.Contains("DEVOLVIDO");
+                                subjectUpper.Contains("DEVOLVIDO") ||
+                                subjectUpper.Contains("RECEBIDO") ||
+                                subjectUpper.Contains("BENEFÍCIO") ||
+                                subjectUpper.Contains("BENEFICIO") ||
+                                subjectUpper.Contains("VENCIMENTO");
 
                 // 2. Classificação do Tipo Financeiro
                 if (item.IsCredit)
@@ -188,11 +192,9 @@ namespace Server.Api.Services
                 return false;
             }
 
-            var termsToIgnore = new[]
-            {
-                "APLICAÇÃO", "RESGATE", "INVESTIMENTO", "POUPANÇA", "CDB",
-                "SALDO", "S A L D O", "TRANSFERIDO", "PIX TRANSF", "ESTORNO"
-            };
+            var termsToIgnore = new[]  { "APLICAÇÃO", "APLICACAO", "RESGATE", "INVESTIMENTO", "POUPANÇA", "POUPANCA",
+                                         "CDB", "LCA", "LCI", "CETIP", "SALDO", "S A L D O", "TRANSFERIDO",
+                                         "PIX TRANSF", "ESTORNO"};
 
             return termsToIgnore.Any(term => subjectUpper.Contains(term));
         }

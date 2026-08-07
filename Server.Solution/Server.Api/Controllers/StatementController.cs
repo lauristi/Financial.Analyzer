@@ -27,7 +27,7 @@ namespace Server.Api.Controllers
         [Route("api/statement/processCsv")]
         public async Task<IActionResult> ProcessCsv(List<IFormFile> files)
         {
-            if (files == null || !files.Any())
+             if (files == null || !files.Any())
             {
                 return BadRequest(GenericResponseEnvelope<StatementResponse>.Failure("Nenhum arquivo enviado.", "NO_FILES"));
             }
