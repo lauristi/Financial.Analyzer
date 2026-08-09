@@ -228,7 +228,7 @@ METRICS: Linhas Brutas: 9 | Metodos Estimados: 4 | Async: 0
 ARQUIVO: Server.Solution\Server.Api\Models\FinancialDashboard.cs
 TYPE: Outro
 NAMESPACE: Server.Api.Models
-METRICS: Linhas Brutas: 11 | Metodos Estimados: 6 | Async: 0
+METRICS: Linhas Brutas: 8 | Metodos Estimados: 3 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
@@ -317,7 +317,7 @@ TYPE: Service
 NAMESPACE: Server.Api.Services
 DEPENDENCIES: IExpenseService, IAiCoreAgentService
 TAGS: [ASYNC]
-METRICS: Linhas Brutas: 229 | Metodos Estimados: 11 | Async: 1
+METRICS: Linhas Brutas: 157 | Metodos Estimados: 9 | Async: 1
 --------------------------------------------------
 
 --------------------------------------------------
@@ -334,7 +334,7 @@ ARQUIVO: Server.Solution\Server.Api\Orchestration\Services\StatementXlsService.c
 TYPE: Service
 NAMESPACE: Server.Api.Orchestration.Contracts
 TAGS: [ASYNC]
-METRICS: Linhas Brutas: 391 | Metodos Estimados: 12 | Async: 2
+METRICS: Linhas Brutas: 396 | Metodos Estimados: 12 | Async: 2
 --------------------------------------------------
 
 --------------------------------------------------

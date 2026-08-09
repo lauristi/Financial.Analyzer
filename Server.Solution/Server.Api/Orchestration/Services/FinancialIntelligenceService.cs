@@ -29,51 +29,29 @@ namespace Server.Api.Services
 
                 string subjectUpper = item.Subject.ToUpper().Trim();
 
-                // 1. Identificação de Crédito vs Débito
-                item.IsCredit = subjectUpper.Contains("CRÉDITO") ||
-                                subjectUpper.Contains("CREDITO") ||
-                                subjectUpper.Contains("DEPÓSITO") ||
-                                subjectUpper.Contains("DEPOSITO") ||
-                                subjectUpper.Contains("DEVOLVIDO") ||
-                                subjectUpper.Contains("RECEBIDO") ||
-                                subjectUpper.Contains("BENEFÍCIO") ||
-                                subjectUpper.Contains("BENEFICIO") ||
-                                subjectUpper.Contains("VENCIMENTO");
+                // 1. O sinal monetário original define se é Crédito ou Débito do banco
+                item.IsCredit = item.Value > 0;
 
-                // 2. Classificação do Tipo Financeiro
-                if (item.IsCredit)
+                // 2. Busca correspondência na planilha de regras (expenses.xls)
+                var matchedExpense = DetermineExpenseRule(subjectUpper, expenses);
+
+                if (matchedExpense != null)
                 {
-                    item.FinancialType = IsInternalMovement(subjectUpper)
-                        ? FinancialType.Ignore
-                        : FinancialType.UnknownCredit;
+                    item.Category = matchedExpense.Group;
+                    item.CategoryOwner = matchedExpense.SubGroup;
+                    item.SourceRule = "Regra Local (Planilha)";
                 }
                 else
                 {
-                    if (IsInternalMovement(subjectUpper))
-                    {
-                        item.FinancialType = FinancialType.Ignore;
-                    }
-                    else
-                    {
-                        var matchedExpense = DetermineExpenseRule(subjectUpper, expenses);
-
-                        if (matchedExpense != null)
-                        {
-                            item.FinancialType = MapToFinancialType(matchedExpense.Group, item.IsCredit);
-                            item.Category = matchedExpense.Group;
-                            item.CategoryOwner = matchedExpense.SubGroup;
-                            item.SourceRule = "Regra Local (Planilha)";
-                        }
-                        else
-                        {
-                            item.FinancialType = FinancialType.UnknownDebit;
-                        }
-                    }
+                    // Não mapeado no Excel -> Fica pendente para a IA analisar
+                    item.Category = "???";
+                    item.SourceRule = "Pendente de Classificação";
                 }
 
-                // 3. Score de impacto e ajuste de sinal monetário
+                // 3. Calculo do Score de impacto
                 item.Score = CalculateFinancialImpactScore(item.Value);
 
+                // 4. Padroniza o valor de saída para exibição visual no relatório
                 if (!item.IsCredit)
                 {
                     item.Value = -Math.Abs(item.Value);
@@ -86,9 +64,10 @@ namespace Server.Api.Services
 
         public async Task<List<SpendingData>> AnalyzeSpendingUsingIAAsync(List<SpendingData> spendingList, CancellationToken ct = default)
         {
-            // Filtra itens não categorizados pela regra local e que não foram ignorados
+            // Filtra apenas o que não foi mapeado pelo Excel e não é Movimentação Interna
             var pendingItems = spendingList
-                .Where(s => string.IsNullOrWhiteSpace(s.Category) && s.FinancialType != FinancialType.Ignore)
+                .Where(s => (s.Category == "???" || string.IsNullOrWhiteSpace(s.Category)) &&
+                            s.Category?.ToUpper() != "MOVIMENTACAO INTERNA")
                 .ToList();
 
             if (!pendingItems.Any())
@@ -100,8 +79,8 @@ namespace Server.Api.Services
                 Atue como um analista financeiro sênior. Você receberá uma lista de descrições de transações bancárias.
                 Analise cada item e retorne estritamente um array JSON contendo objetos com as seguintes propriedades:
 
-                - "SuggestedCategory": string contendo a categoria sugerida.
-                - "ConfidenceLevel": um valor numérico decimal entre 0.0 e 1.0 representando o nível de certeza (ex: 1.0 para alta, 0.5 para média, 0.2 para baixa).
+                - "SuggestedCategory": string contendo a categoria sugerida (Ex: MERCADO, FARMACIA, ALUGUEL, LAZER, TRANSPORTE, etc).
+                - "ConfidenceLevel": um valor numérico decimal entre 0.0 e 1.0 representando o nível de certeza.
                 - "Reasoning": string explicativa curta do porquê da categoria.
 
                 Não adicione textos explicativos ou blocos de Markdown fora do array JSON.
@@ -150,30 +129,10 @@ namespace Server.Api.Services
 
         public void GenerateDashboardTotals(StatementResponse processedData)
         {
-            foreach (var item in processedData.SpendingDataList)
-            {
-                decimal value = Math.Abs(item.Value);
-                if (item.IsCredit)
-                {
-                    processedData.Dashboard.TotalCredit += value;
-                }
-                else
-                {
-                    processedData.Dashboard.TotalDebit += value;
-                    switch (item.FinancialType)
-                    {
-                        case FinancialType.SupermarketDebit:
-                            processedData.Dashboard.Supermarket += value;
-                            break;
-                        case FinancialType.PharmacyDebit:
-                            processedData.Dashboard.Pharmacy += value;
-                            break;
-                        case FinancialType.ExtraDebit:
-                            processedData.Dashboard.Extra += value;
-                            break;
-                    }
-                }
-            }
+            processedData.Dashboard = processedData.SpendingDataList.GroupBy(x => x.Category ?? "Sem categoria")
+                                                               .Select(g => new FinancialDashboard{Category = g.Key,
+                                                                                                   Total= g.Sum(x => x.Value)
+                                                                                                  }).ToList();
         }
 
         #region Helpers
@@ -183,39 +142,6 @@ namespace Server.Api.Services
             return expenses.FirstOrDefault(e =>
                 !string.IsNullOrWhiteSpace(e.Origin) &&
                 subjectUpper.Contains(e.Origin.ToUpper().Trim()));
-        }
-
-        private bool IsInternalMovement(string subjectUpper)
-        {
-            if (subjectUpper.Contains("DEVOLVIDO"))
-            {
-                return false;
-            }
-
-            var termsToIgnore = new[]  { "APLICAÇÃO", "APLICACAO", "RESGATE", "INVESTIMENTO", "POUPANÇA", "POUPANCA",
-                                         "CDB", "LCA", "LCI", "CETIP", "SALDO", "S A L D O", "TRANSFERIDO",
-                                         "PIX TRANSF", "ESTORNO"};
-
-            return termsToIgnore.Any(term => subjectUpper.Contains(term));
-        }
-
-        private FinancialType MapToFinancialType(string groupName, bool isCredit)
-        {
-            switch (groupName?.ToUpper().Trim())
-            {
-                case "MERCADO":
-                    return FinancialType.SupermarketDebit;
-
-                case "FARMACIA":
-                case "FARMÁCIA":
-                    return FinancialType.PharmacyDebit;
-
-                case "EXTRA":
-                    return FinancialType.ExtraDebit;
-
-                default:
-                    return isCredit ? FinancialType.UnknownCredit : FinancialType.UnknownDebit;
-            }
         }
 
         private string CalculateFinancialImpactScore(decimal value)
