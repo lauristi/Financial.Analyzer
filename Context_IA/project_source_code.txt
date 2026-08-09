@@ -1771,7 +1771,34 @@ namespace Server.Web.Components.Shared;
 public partial class FinancialDashboardComponent : ComponentBase
 {
     [Parameter]
-    public FinancialDashboard Data { get; set; } = new();
+    public List<FinancialDashboard> Data { get; set; } = new();
+    private string GetCardCssClass(string category)
+    {
+        string cat = category?.ToUpper().Trim() ?? string.Empty;
+        if (cat == "CREDITO" || cat == "CRÉDITO")
+        {
+            return "card-green";
+        }
+        if (cat.Contains("MOVIMENTACAO INTERNA") || cat.Contains("MOVIMENTAÇÃO INTERNA") || cat.Contains("INTERNA"))
+        {
+            return "card-orange";
+        }
+        if (cat.Contains("RESGATE") || cat.Contains("SAQUE"))
+        {
+            return "card-red";
+        }
+        return "card-blue";
+    }
+    private string GetCategoryIcon(string category)
+    {
+        string cat = category?.ToUpper().Trim() ?? string.Empty;
+        if (cat.Contains("CREDITO") || cat.Contains("CRÉDITO")) return "bi-plus-circle";
+        if (cat.Contains("INTERNA")) return "bi-arrow-left-right";
+        if (cat.Contains("RESGATE") || cat.Contains("SAQUE")) return "bi-cash-stack";
+        if (cat.Contains("MERCADO")) return "bi-cart4";
+        if (cat.Contains("FARMACIA") || cat.Contains("FARMÁCIA")) return "bi-capsule";
+        return "bi-dash-circle";
+    }
 }
 
 
@@ -2241,11 +2268,8 @@ namespace Server.Web.Services.Models.GroupedModel
 {
     public class FinancialDashboard
     {
-        public decimal TotalDebit { get; set; }
-        public decimal TotalCredit { get; set; }
-        public decimal Supermarket { get; set; }
-        public decimal Pharmacy { get; set; }
-        public decimal Extra { get; set; }
+        public string Category { get; set; }
+        public decimal Total { get; set; }
     }
 }
 
@@ -2283,11 +2307,11 @@ namespace Server.Web.Services.Models.GroupedModel
         {
             // Garante que os objetos internos não sejam nulos
             SpendingDataList = new List<SpendingData>();
-            Dashboard = new FinancialDashboard();
+            Dashboard = new List<FinancialDashboard>();
             FilePath = string.Empty;
         }
         public List<SpendingData> SpendingDataList { get; set; }
-        public FinancialDashboard Dashboard { get; set; }
+        public List<FinancialDashboard> Dashboard { get; set; }
         public string FilePath { get; set; }
         public string FileBase64 { get; set; }
     }

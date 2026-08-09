@@ -385,7 +385,7 @@ METRICS: Linhas Brutas: 41 | Metodos Estimados: 5 | Async: 1
 ARQUIVO: Server.Web.Solution\Server.Web\Components\Shared\FinancialDashboardComponent.razor.cs
 TYPE: Outro
 NAMESPACE: Server.Web.Components.Shared
-METRICS: Linhas Brutas: 10 | Metodos Estimados: 2 | Async: 0
+METRICS: Linhas Brutas: 45 | Metodos Estimados: 4 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------
@@ -503,7 +503,7 @@ METRICS: Linhas Brutas: 13 | Metodos Estimados: 1 | Async: 0
 ARQUIVO: Server.Web.Solution\Server.Web\Services\Models\GroupedModel\FinancialDashboard.cs
 TYPE: Outro
 NAMESPACE: Server.Web.Services.Models.GroupedModel
-METRICS: Linhas Brutas: 11 | Metodos Estimados: 6 | Async: 0
+METRICS: Linhas Brutas: 8 | Metodos Estimados: 3 | Async: 0
 --------------------------------------------------
 
 --------------------------------------------------

@@ -1,7 +1,7 @@
 ﻿@using Server.Web.Services.Models.GroupedModel
 
 <div class="dashboard-scroll-container">
-    <div class="dashboard-grid">
+    <div class="dashboard-list">
         @if (Data != null && Data.Any())
         {
             @foreach (var item in Data)
@@ -20,7 +20,7 @@
             <div class="dashboard-card card-blue">
                 <div class="card-info">
                     <i class="bi bi-info-circle me-2"></i>
-                    <span class="card-title">Nenhum dado disponível</span>
+                    <span class="card-title">Sem dados</span>
                 </div>
                 <span class="value-display">R$ 0,00</span>
             </div>
@@ -29,68 +29,81 @@
 </div>
 
 <style>
-    /* Container para controlar o estouro e permitir a rolagem */
+    /* Container para controlar a rolagem e otimizar o espaço */
     .dashboard-scroll-container {
-        max-height: 420px; /* Ajuste a altura limite se preferir */
+        max-height: 400px;
         overflow-y: auto;
-        padding-right: 6px;
+        padding-right: 4px;
     }
 
-    /* Estilização sutil para a barra de rolagem */
-    .dashboard-scroll-container::-webkit-scrollbar {
-        width: 6px;
-    }
-    .dashboard-scroll-container::-webkit-scrollbar-thumb {
-        background-color: #ccc;
-        border-radius: 4px;
-    }
+        /* Estilização sutil da barra de rolagem */
+        .dashboard-scroll-container::-webkit-scrollbar {
+            width: 5px;
+        }
 
-    /* Layout da Grid */
-    .dashboard-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 12px;
-    }
+        .dashboard-scroll-container::-webkit-scrollbar-thumb {
+            background-color: #bbbbbb;
+            border-radius: 3px;
+        }
 
-    /* Cartão base */
-    .dashboard-card {
+    /* Lista vertical empilhada */
+    .dashboard-list {
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
-        padding: 12px 16px;
-        border-radius: 8px;
+        gap: 6px; /* Espaçamento bem curto entre os cards */
+    }
+
+    /* Card Ultrafino e Horizontal (Single Line) */
+    .dashboard-card {
+        display: flex;
+        flex-direction: row; /* Força tudo na mesma linha */
+        align-items: center;
+        justify-content: space-between; /* Título à esquerda, Valor à direita */
+        padding: 6px 14px; /* Padding reduzido para deixar o card fino */
+        border-radius: 6px;
         color: #ffffff;
         font-weight: 600;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        min-height: 36px; /* Altura mínima reduzida */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12);
     }
 
     .card-info {
         display: flex;
         align-items: center;
-        font-size: 0.85rem;
+        font-size: 0.82rem; /* Fonte levemente menor para caber mais itens */
         text-transform: uppercase;
-        margin-bottom: 8px;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    .value-display {
-        font-size: 1.25rem;
+    .card-title {
         font-weight: 700;
     }
 
-    /* Regras de Cores Solicitadas */
+    .value-display {
+        font-size: 0.95rem; /* Fonte do valor ajustada para manter equilíbrio */
+        font-weight: 700;
+        white-space: nowrap;
+        margin-left: 8px;
+    }
+
+    /* Cores Mapeadas */
     .card-green {
         background-color: #28a745; /* CRÉDITO -> Verde */
     }
 
     .card-orange {
-        background-color: #fd7e14; /* MOVIMENTAÇÕES INTERNAS -> Laranja */
+        background-color: #fd7e14; /* MOVIMENTAÇÃO INTERNA -> Laranja */
     }
 
     .card-red {
-        background-color: #dc3545; /* RESGATE E SAQUE -> Vermelho */
+        background-color: #dc3545; /* RESGATE / SAQUE -> Vermelho */
     }
 
     .card-blue {
         background-color: #0d6efd; /* TODO O RESTO -> Azul */
     }
 </style>
+
